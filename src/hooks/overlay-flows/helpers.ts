@@ -1,7 +1,7 @@
 /** @desc Shared helpers for overlay-flow item construction and confirmations. */
 
-import type { ProvisioningPhase } from "../../../../core/types.js";
-import { PROVISIONING_PHASE_LABEL } from "../../../../core/types.js";
+import type { ProvisioningPhase } from "@agenteam/types";
+import { PROVISIONING_PHASE_LABEL } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { theme } from "../../lib/theme.js";
 import type { RendererDataSource, SelectItem, OverlayLayout } from "../../types.js";

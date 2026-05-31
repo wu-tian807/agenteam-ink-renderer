@@ -23,11 +23,11 @@ import { panelListChromeOverhead } from "../lib/scrollable-list-viewport.js";
 import { useScrollableListViewport } from "./use-scrollable-list-viewport.js";
 import { ScrollableListFrame, scrollableListNavHint } from "../components/ScrollableListFrame.js";
 import { BoardPanel } from "../components/BoardPanel.js";
-import { parseCommand } from "../../../core/command-parser.js";
+import { parseCommand } from "@agenteam/types";
 import { theme } from "../lib/theme.js";
 import { appendSystemTurn } from "../lib/system-message.js";
 import { resolveSlashCommand } from "../lib/slash-command-registry.js";
-import type { CommandResult } from "../../../capability/command/types.js";
+import type { CommandResult } from "@agenteam/types";
 import {
   checkSetupStatus,
   installKeybindings,

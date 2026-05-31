@@ -1,5 +1,5 @@
-import type { ContentPart, EventContent } from "../../../core/types.js";
-import { fileToContentPart, isBinaryFile } from "../../../core/types.js";
+import type { ContentPart, EventContent } from "@agenteam/types";
+import { fileToContentPart, isBinaryFile } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
 import { lookup } from "mime-types";
 

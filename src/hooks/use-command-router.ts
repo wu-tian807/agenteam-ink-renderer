@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import type { SlashCommand } from "../types.js";
-import type { CommandSpec } from "../../../capability/command/types.js";
+import type { CommandSpec } from "@agenteam/types";
 import { getSlashCommandSuggestions } from "../lib/slash-command-registry.js";
 
 /**

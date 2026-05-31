@@ -1,6 +1,6 @@
 // @desc Slash command registry — shared metadata + handler keys for suggestions and routing
 import type { SlashCommand } from "../types.js";
-import type { CommandSpec } from "../../../capability/command/types.js";
+import type { CommandSpec } from "@agenteam/types";
 
 export type SlashCommandHandlerKey =
   | "agents"

@@ -17,7 +17,7 @@ import { default as Box } from "../ink/components/Box.js";
 import { default as Text } from "../ink/components/Text.js";
 import useInput from "../ink/hooks/use-input.js";
 import { useCommandRouter } from "../hooks/use-command-router.js";
-import type { CommandSpec } from "../../../capability/command/types.js";
+import type { CommandSpec } from "@agenteam/types";
 import { useInputState } from "../hooks/use-input-state.js";
 import { CtrlCLayerContext } from "../hooks/use-ctrl-c-chain.js";
 import { useSetPromptOverlay } from "../hooks/prompt-overlay-context.js";

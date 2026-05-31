@@ -22,7 +22,7 @@ import { OverlayLayer } from "./OverlayLayer.js";
 import { CommandSuggestions } from "./CommandSuggestions.js";
 import { ReservedQueuePanel } from "./ReservedQueuePanel.js";
 import type { InputBoxControl } from "./InputBox.js";
-import type { CommandSpec } from "../../../capability/command/types.js";
+import type { CommandSpec } from "@agenteam/types";
 import { useTerminalSize } from "../hooks/use-terminal-size.js";
 import { usePromptOverlay } from "../hooks/prompt-overlay-context.js";
 import { OverlaySchedulerContext } from "../lib/contexts.js";

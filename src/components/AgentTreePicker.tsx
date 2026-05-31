@@ -27,7 +27,7 @@ import { panelListChromeOverhead } from "../lib/scrollable-list-viewport.js";
 import { useScrollableListViewport } from "../hooks/use-scrollable-list-viewport.js";
 import { ScrollableListFrame, scrollableListNavHint } from "./ScrollableListFrame.js";
 import { theme } from "../lib/theme.js";
-import type { AgentNodeData } from "../../../core/types.js";
+import type { AgentNodeData } from "@agenteam/types";
 
 interface TreeNode extends AgentNodeData {
   children: TreeNode[];

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { lookup as mimeLookup } from "mime-types";
-import type { InputModality } from "../../../core/types.js";
+import type { InputModality } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
 
 type FileSegment = Extract<InputSegment, { type: "file" }>;

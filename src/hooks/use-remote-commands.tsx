@@ -1,7 +1,7 @@
 // @desc useRemoteCommands — poll the worker for command list, return CommandSpec[]
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import type { CommandSpec } from "../../../capability/command/types.js";
+import type { CommandSpec } from "@agenteam/types";
 import type { RendererCallbacks } from "../lib/renderer-config.js";
 
 export interface UseRemoteCommandsOpts {

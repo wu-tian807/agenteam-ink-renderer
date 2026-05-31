@@ -1,7 +1,7 @@
 // @desc RendererConfig — state persistence, data source abstraction, active agent resolution
 
-import type { EventContent, EventHandoff } from "../../../core/types.js";
-import type { CommandSpec, CommandResult } from "../../../capability/command/types.js";
+import type { EventContent, EventHandoff } from "@agenteam/types";
+import type { CommandSpec, CommandResult } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
 
 export interface RendererCallbacks {

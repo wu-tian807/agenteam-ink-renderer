@@ -4,7 +4,7 @@
 
 import React from "react";
 import type { OverlayFlowDeps } from "./types.js";
-import type { InstanceStatus } from "../../../../core/types.js";
+import type { InstanceStatus } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { CreateInstancePanel } from "../../components/CreateInstancePanel.js";
 import { TextInputPanel } from "../../components/TextInputPanel.js";

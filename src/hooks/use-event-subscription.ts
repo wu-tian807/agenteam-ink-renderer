@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import type { RendererCallbacks, StoredEvent } from "../types.js";
+import type { RendererCallbacks, StoredEvent, RendererMessage, CompletedTurn } from "../types.js";
 import type { Event } from "@agenteam/types";
 import { TurnAccumulator } from "../lib/turn-accumulator.js";
 
@@ -26,9 +26,9 @@ function toStoredEvent(event: Event, emitterId?: string): StoredEvent {
 export interface EventDispatch {
   appendStreamText: (text: string) => void;
   appendThinkingText: (text: string) => void;
-  pushMessage: (msg: import("../types.js").RendererMessage) => void;
-  updateMessage: (callId: string, msg: import("../types.js").RendererMessage) => void;
-  commitTurn: (turn: import("../types.js").CompletedTurn) => void;
+  pushMessage: (msg: RendererMessage) => void;
+  updateMessage: (callId: string, msg: RendererMessage) => void;
+  commitTurn: (turn: CompletedTurn) => void;
   setSessionLabel: (session: string) => void;
   setContextPct: (pct: number) => void;
   setIsThinking: (v: boolean) => void;

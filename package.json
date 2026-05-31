@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "AgenTeam terminal UI renderer — Ink-based interactive agent conversation interface",
   "type": "module",
-  "main": "src/app.tsx",
+  "main": "src/index.ts",
   "scripts": {
     "build": "tsc --noEmit",
     "version": "node scripts/auto-version.js"

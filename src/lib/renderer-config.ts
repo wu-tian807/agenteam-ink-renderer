@@ -1,6 +1,6 @@
 // @desc RendererConfig — state persistence, data source abstraction, active agent resolution
 
-import type { EventContent, EventHandoff } from "@agenteam/types";
+import type { AgentNodeData, EventContent, EventHandoff } from "@agenteam/types";
 import type { CommandSpec, CommandResult } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
 
@@ -75,7 +75,7 @@ export interface RendererDataSource {
   /** Fetch the agent's operational STATUS from TeamBoard (e.g. "plan_mode"). */
   getAgentStatus?(agentId: string): Promise<string>;
   /** Fetch the full agent tree (node list with roles and hierarchy). */
-  fetchAgentTree?(): Promise<import("../../../core/types.js").AgentNodeData[]>;
+  fetchAgentTree?(): Promise<AgentNodeData[]>;
   /** Fetch TeamBoard variables. If agentId is omitted, returns all agents' boards. */
   fetchTeamBoard?(agentId?: string): Promise<Record<string, Record<string, unknown>>>;
   /** Fetch the agent.json configuration for a specific agent. */

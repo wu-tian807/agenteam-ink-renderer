@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { writeFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveStateDir } from "../../../fs/state-dir.js";
+import { resolveStateDir } from "@agenteam/types";
 import type { DraftSnapshot } from "./renderer-config.js";
 
 export interface InkCache {

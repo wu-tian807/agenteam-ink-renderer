@@ -1,0 +1,50 @@
+{
+  "name": "@agenteam/ink-renderer",
+  "version": "0.1.0",
+  "description": "AgenTeam terminal UI renderer — Ink-based interactive agent conversation interface",
+  "type": "module",
+  "main": "src/app.tsx",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "version": "node scripts/auto-version.js"
+  },
+  "dependencies": {
+    "@agenteam/types": "github:wu-tian807/agenteam-types",
+    "@alcalzone/ansi-tokenize": "^0.3.0",
+    "auto-bind": "^5.0.1",
+    "bidi-js": "^1.0.3",
+    "chalk": "^5.6.2",
+    "cli-boxes": "^4.0.1",
+    "code-excerpt": "^4.0.0",
+    "emoji-regex": "^10.6.0",
+    "get-east-asian-width": "^1.5.0",
+    "indent-string": "^5.0.0",
+    "ink": "^6.3.0",
+    "lodash-es": "^4.18.1",
+    "marked": "^17.0.5",
+    "mime-types": "^3.0.2",
+    "react": "^19.2.4",
+    "react-reconciler": "^0.32.0",
+    "semver": "^7.7.4",
+    "signal-exit": "^4.1.0",
+    "slice-ansi": "^8.0.0",
+    "stack-utils": "^2.0.6",
+    "strip-ansi": "^7.2.0",
+    "supports-hyperlinks": "^4.4.0",
+    "type-fest": "^5.5.0",
+    "usehooks-ts": "^3.1.1",
+    "wrap-ansi": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wu-tian807/agenteam-ink-renderer.git"
+  },
+  "license": "Apache-2.0"
+}

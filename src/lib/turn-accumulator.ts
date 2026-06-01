@@ -156,6 +156,21 @@ export class TurnAccumulator {
         break;
       }
 
+      case "shell:started": {
+        const terminalId = payload.terminalId as string | undefined;
+        if (!terminalId) break;
+        for (const [callId, idx] of this.pendingToolCalls) {
+          const msg = this.currentMessages[idx] as ToolCallMessage;
+          if (msg.kind === "tool_call" && (msg.name === "shell" || msg.name === "admin_shell") && !msg.terminalId) {
+            const updated = { ...msg, terminalId };
+            this.currentMessages[idx] = updated;
+            this.cb.onUpdateMessage?.(callId, updated);
+            break;
+          }
+        }
+        break;
+      }
+
       case "hook:toolResult": {
         const result = formatEvent(event, this.viewerId) as ToolResultMessage | null;
         if (!result) break;

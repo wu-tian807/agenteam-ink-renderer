@@ -26,6 +26,7 @@ import { CtrlCLayerContext } from "./hooks/use-ctrl-c-chain.js";
 import { PromptOverlayProvider } from "./hooks/prompt-overlay-context.js";
 import { segmentsToVisualDisplay } from "@agenteam/types";
 import { inputSegmentsToEventContent } from "./lib/input-submit-adapter.js";
+import { insertSegmentAt } from "@agenteam/types";
 import { ColumnsContext, OverlaySchedulerContext, DataSourceContext, CallbacksContext } from "./lib/contexts.js";
 import { ScreenLayout } from "./components/ScreenLayout.js";
 
@@ -163,9 +164,8 @@ export function InkApp({
   });
 
   // 5c. Snippet ingest — receive code snippets pushed from external tools
-  //     (Cursor/VSCode extension). Enqueue into the reserved queue so they
-  //     appear as a pending item the user can review, send, or discard —
-  //     consistent with the "typed while busy" UX, no direct input buffer mutation.
+  //     (Cursor/VSCode extension). Append to the input box so the user can
+  //     review or edit before sending.
   useEffect(() => {
     return callbacks.observeEvents((event) => {
       if (event.type !== "snippet_attached") return;
@@ -185,9 +185,13 @@ export function InkApp({
           language: typeof payload.language === "string" ? payload.language : undefined,
         },
       };
-      reservedQueue.enqueue(content, [newSeg]);
+      const ctrl = inputControlRef.current;
+      if (!ctrl) return;
+      const segs = [...ctrl.getSegments()];
+      insertSegmentAt(segs, ctrl.getCursor(), content, "paste");
+      ctrl.setSegments(segs);
     });
-  }, [callbacks, reservedQueue]);
+  }, [callbacks, inputControlRef]);
 
   // Suppress the next auto-flush (set when the user explicitly interrupts the
   // agent via Ctrl+C — we don't want the interrupt to be immediately undone by

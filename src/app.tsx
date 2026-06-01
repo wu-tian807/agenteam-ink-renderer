@@ -19,6 +19,7 @@ import { useEventBridge } from "./hooks/use-event-bridge.js";
 import { useStartupFlow } from "./hooks/use-startup-flow.js";
 import { useGlobalKeys } from "./hooks/use-global-keys.js";
 import { useReservedQueue, type ReservedItem } from "./hooks/use-reserved-queue.js";
+import { useReservedQueueEdit } from "./hooks/use-reserved-queue-edit.js";
 import { useDraftPersistence } from "./hooks/use-draft-persistence.js";
 import { useRemoteCommands } from "./hooks/use-remote-commands.js";
 import type { InputBoxControl } from "./components/InputBox.js";
@@ -148,9 +149,13 @@ export function InkApp({
   //    queue-pop guard pointing at this state.
   const reservedQueue = useReservedQueue();
 
+
   // 5a. Imperative handle to InputBox, used by draft persistence to read /
   //     restore the editor contents without requiring a remount.
   const inputControlRef = useRef<InputBoxControl | null>(null);
+
+  // 5-edit. Edit-in-place state machine (Ctrl+C cancel registered internally).
+  const edit = useReservedQueueEdit(reservedQueue, inputControlRef, mainLayerApi);
 
   // 5b. Draft persistence — wires the cache file to the live UI scoped per
   //     (instance, agent). Restores on mount of each pair, flushes on switch
@@ -262,6 +267,7 @@ export function InkApp({
     reservedQueue,
   });
 
+
   // 7. Slash commands
   const handleSlashCommand = useSlashCommands({
     scheduler,
@@ -315,16 +321,18 @@ export function InkApp({
   }, [callbacks]);
 
   const handleSubmit = useCallback(async (text: string, segments: InputSegment[]) => {
+    if (edit.commitEdit(text, segments)) return;
     if (isAgentRunningRef.current) {
       reservedQueueRef.current.enqueue(text, segments);
       return;
     }
     await dispatchAs("turn", segments);
-  }, [dispatchAs]);
+  }, [dispatchAs, edit]);
 
-  const handleSteerSubmit = useCallback(async (_text: string, segments: InputSegment[]) => {
+  const handleSteerSubmit = useCallback(async (text: string, segments: InputSegment[]) => {
+    if (edit.commitEdit(text, segments)) return;
     await dispatchAs("steer", segments);
-  }, [dispatchAs]);
+  }, [dispatchAs, edit]);
 
   // Manual flush — user explicitly clicks [send] or hits Ctrl+Enter on an
   // empty input. Steer semantics: interrupt the running agent with this item.
@@ -335,9 +343,10 @@ export function InkApp({
   }, [dispatchAs]);
 
   const handleFlushReservedById = useCallback((id: string) => {
+    edit.clearIfEditing(id);
     const popped = reservedQueueRef.current.removeById(id);
     if (popped) void flushReservedManual(popped);
-  }, [flushReservedManual]);
+  }, [flushReservedManual, edit]);
 
   const handleFlushReservedHead = useCallback(() => {
     const head = reservedQueueRef.current.dequeueHead();
@@ -345,8 +354,13 @@ export function InkApp({
   }, [flushReservedManual]);
 
   const handleRemoveReserved = useCallback((id: string) => {
+    edit.clearIfEditing(id);
     reservedQueueRef.current.removeById(id);
-  }, []);
+  }, [edit]);
+
+  const handleEditReserved = useCallback((id: string) => {
+    edit.startEdit(id);
+  }, [edit]);
 
   // ── Auto-flush on natural turn end ──
   //
@@ -369,7 +383,9 @@ export function InkApp({
       return;
     }
 
-    const head = reservedQueueRef.current.dequeueHead();
+    const q = reservedQueueRef.current;
+    if (edit.isEditingHead) return;
+    const head = q.dequeueHead();
     if (head) void dispatchAs("turn", head.segments);
   }, [bridge.isThinking, dispatchAs]);
 
@@ -402,6 +418,8 @@ export function InkApp({
         onFlushReservedById={handleFlushReservedById}
         onFlushReservedHead={handleFlushReservedHead}
         onRemoveReserved={handleRemoveReserved}
+        onEditReserved={handleEditReserved}
+        editingReservedId={edit.editingId}
         inputControlRef={inputControlRef}
         remoteCommands={remoteCommands}
       />

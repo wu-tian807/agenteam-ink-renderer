@@ -26,6 +26,8 @@ export interface ReservedQueueApi {
   dequeueHead(): ReservedItem | null;
   /** Remove a queued item by id (used by both `[del]` and `[send]` rows). */
   removeById(id: string): ReservedItem | null;
+  /** Update an existing item's content in place (used by the edit flow). */
+  updateById(id: string, text: string, segments: InputSegment[]): boolean;
   /** Replace the queue wholesale — used by draft restoration. */
   setItems(items: ReservedItem[]): void;
 }
@@ -69,12 +71,24 @@ export function useReservedQueue(): ReservedQueueApi {
     return head;
   }, []);
 
+  const updateById = useCallback((id: string, text: string, segments: InputSegment[]): boolean => {
+    const idx = ref.current.findIndex(i => i.id === id);
+    if (idx < 0) return false;
+    set(prev => prev.map((item, i) =>
+      i === idx
+        ? { ...item, text, segments, visualDisplay: segmentsToVisualDisplay(segments) }
+        : item,
+    ));
+    return true;
+  }, []);
+
   return {
     items,
     size: items.length,
     enqueue,
     dequeueHead,
     removeById,
+    updateById,
     setItems: set,
   };
 }

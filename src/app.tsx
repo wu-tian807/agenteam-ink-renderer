@@ -26,7 +26,7 @@ import { CtrlCLayerContext } from "./hooks/use-ctrl-c-chain.js";
 import { PromptOverlayProvider } from "./hooks/prompt-overlay-context.js";
 import { segmentsToVisualDisplay } from "@agenteam/types";
 import { inputSegmentsToEventContent } from "./lib/input-submit-adapter.js";
-import { insertSegmentAt } from "@agenteam/types";
+import { findSegmentAt } from "@agenteam/types";
 import { ColumnsContext, OverlaySchedulerContext, DataSourceContext, CallbacksContext } from "./lib/contexts.js";
 import { ScreenLayout } from "./components/ScreenLayout.js";
 
@@ -188,7 +188,9 @@ export function InkApp({
       const ctrl = inputControlRef.current;
       if (!ctrl) return;
       const segs = [...ctrl.getSegments()];
-      insertSegmentAt(segs, ctrl.getCursor(), content, "paste");
+      const hit = findSegmentAt(segs, ctrl.getCursor());
+      const idx = hit ? (ctrl.getCursor() === hit.segOffset ? hit.segIdx : hit.segIdx + 1) : segs.length;
+      segs.splice(idx, 0, newSeg);
       ctrl.setSegments(segs);
     });
   }, [callbacks, inputControlRef]);

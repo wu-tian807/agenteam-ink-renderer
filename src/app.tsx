@@ -154,9 +154,6 @@ export function InkApp({
   //     restore the editor contents without requiring a remount.
   const inputControlRef = useRef<InputBoxControl | null>(null);
 
-  // 5-edit. Edit-in-place state machine (Ctrl+C cancel registered internally).
-  const edit = useReservedQueueEdit(reservedQueue, inputControlRef, mainLayerApi);
-
   // 5b. Draft persistence — wires the cache file to the live UI scoped per
   //     (instance, agent). Restores on mount of each pair, flushes on switch
   //     and on a ~2s heartbeat for crash safety.
@@ -267,6 +264,8 @@ export function InkApp({
     reservedQueue,
   });
 
+  // 5-edit. Edit-in-place state machine (Ctrl+C cancel registered internally).
+  const edit = useReservedQueueEdit(reservedQueue, inputControlRef, mainLayerApi);
 
   // 7. Slash commands
   const handleSlashCommand = useSlashCommands({

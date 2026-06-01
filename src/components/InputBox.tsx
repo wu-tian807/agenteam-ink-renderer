@@ -35,6 +35,8 @@ import type { KeyboardEvent } from "../ink/events/keyboard-event.js";
 export interface InputBoxControl {
   getSegments(): InputSegment[];
   setSegments(segs: InputSegment[]): void;
+  getCursor(): number;
+  setCursor(pos: number): void;
 }
 
 interface InputBoxProps {
@@ -306,10 +308,14 @@ export function InputBox({
   // so the handle identity is stable across keystrokes.
   const segsHandleRef = React.useRef(segments);
   segsHandleRef.current = segments;
+  const cursorHandleRef = React.useRef(cursorPos);
+  cursorHandleRef.current = cursorPos;
   useImperativeHandle(controlRef, () => ({
     getSegments: () => segsHandleRef.current,
     setSegments,
-  }), [setSegments]);
+    getCursor: () => cursorHandleRef.current,
+    setCursor,
+  }), [setSegments, setCursor]);
 
   // ── Ctrl+C guard: clear input if non-empty ──
   const layer = useContext(CtrlCLayerContext);

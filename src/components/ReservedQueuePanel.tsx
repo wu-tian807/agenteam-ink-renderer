@@ -28,6 +28,8 @@ interface ReservedQueuePanelProps {
   items: ReservedItem[];
   onFlush: (id: string) => void;
   onRemove: (id: string) => void;
+  onEdit?: (id: string) => void;
+  editingId?: string | null;
 }
 
 const ITEM_TRUNCATE = 100;
@@ -42,6 +44,8 @@ export function ReservedQueuePanel({
   items,
   onFlush,
   onRemove,
+  onEdit,
+  editingId,
 }: ReservedQueuePanelProps): React.JSX.Element | null {
   if (items.length === 0) return null;
 
@@ -50,14 +54,19 @@ export function ReservedQueuePanel({
       <Box width="100%">
         <Text color={theme.spinner.color}>⏳ </Text>
         <Text bold color={theme.spinner.color}>{items.length} queued</Text>
+        {editingId && (
+          <Text dimColor>  (editing — Ctrl+C cancel, Enter confirm)</Text>
+        )}
       </Box>
       {items.map((item, idx) => (
         <ReservedRow
           key={item.id}
           item={item}
           isHead={idx === 0}
+          isEditing={item.id === editingId}
           onFlush={onFlush}
           onRemove={onRemove}
+          onEdit={onEdit}
         />
       ))}
     </Box>
@@ -67,31 +76,38 @@ export function ReservedQueuePanel({
 interface ReservedRowProps {
   item: ReservedItem;
   isHead: boolean;
+  isEditing: boolean;
   onFlush: (id: string) => void;
   onRemove: (id: string) => void;
+  onEdit?: (id: string) => void;
 }
 
-/**
- * Render one queued message with two bracketed clickable buttons. We use
- * `[send]` / `[del]` over glyph-only icons because terminal users immediately
- * recognise bracketed labels as actions, whereas symbols like ▶/✕ are
- * ambiguous (could be a status marker, a bullet, etc.).
- */
-function ReservedRow({ item, isHead, onFlush, onRemove }: ReservedRowProps): React.JSX.Element {
+function ReservedRow({ item, isHead, isEditing, onFlush, onRemove, onEdit }: ReservedRowProps): React.JSX.Element {
   const summary = summarize(item.visualDisplay || item.text);
   return (
     <Box width="100%">
       <Box flexShrink={0} marginRight={1}>
-        <Text color={isHead ? theme.spinner.color : undefined} dimColor={!isHead}>{isHead ? "▸" : " "}</Text>
+        <Text color={isHead ? theme.spinner.color : undefined} dimColor={!isHead}>
+          {isEditing ? "✎" : isHead ? "▸" : " "}
+        </Text>
       </Box>
       <Box flexShrink={0} marginRight={1} onClick={() => onFlush(item.id)}>
         <Text color={theme.userInput.color} bold>[send]</Text>
       </Box>
+      {onEdit && (
+        <Box flexShrink={0} marginRight={1} onClick={() => onEdit(item.id)}>
+          <Text color={isEditing ? theme.spinner.color : "yellow"} bold>
+            {isEditing ? "[editing]" : "[edit]"}
+          </Text>
+        </Box>
+      )}
       <Box flexShrink={0} marginRight={1} onClick={() => onRemove(item.id)}>
         <Text color={theme.error.color} bold>[del]</Text>
       </Box>
       <Box flexShrink={1} flexGrow={1} overflow="hidden">
-        <Text wrap="truncate" dimColor={!isHead}>{summary}</Text>
+        <Text wrap="truncate" dimColor={!isHead && !isEditing} color={isEditing ? "yellow" : undefined}>
+          {summary}
+        </Text>
       </Box>
     </Box>
   );

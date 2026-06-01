@@ -49,6 +49,8 @@ export interface ScreenLayoutProps {
   onFlushReservedById: (id: string) => void;
   onFlushReservedHead: () => void;
   onRemoveReserved: (id: string) => void;
+  onEditReserved?: (id: string) => void;
+  editingReservedId?: string | null;
   /** Imperative handle for the draft persistence layer (read/replace input). */
   inputControlRef?: React.MutableRefObject<InputBoxControl | null>;
   /** Worker commands for autocomplete merging (passed through to InputBox). */
@@ -95,6 +97,7 @@ function OverlayAwareLayout(props: ScreenLayoutProps): React.JSX.Element {
     thinkingStartMs, lastCompletedTurnDurationMs, turnTokens,
     onSubmit, onSteerSubmit, onSlashCommand,
     reservedItems, onFlushReservedById, onFlushReservedHead, onRemoveReserved,
+    onEditReserved, editingReservedId,
     inputControlRef, remoteCommands,
   } = props;
 
@@ -143,6 +146,8 @@ function OverlayAwareLayout(props: ScreenLayoutProps): React.JSX.Element {
             items={reservedItems}
             onFlush={onFlushReservedById}
             onRemove={onRemoveReserved}
+            onEdit={onEditReserved}
+            editingId={editingReservedId}
           />
           <SuggestionsOverlay />
           <Box flexDirection="column" width="100%" flexGrow={1} overflowY="hidden">

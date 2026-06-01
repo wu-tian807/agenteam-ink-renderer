@@ -8,15 +8,15 @@
  *   4. SystemLine     — dim icon + label + text (tick, notice, external, command, etc.)
  */
 
-import React, { memo, useContext } from "react";
+import React, { memo, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { default as Box } from "../ink/components/Box.js";
 import { default as Text } from "../ink/components/Text.js";
 import { Ansi } from "../ink/Ansi.js";
 import { Markdown } from "../ink/components/StreamingMarkdown.js";
-import type { RendererMessage } from "../types.js";
+import type { RendererMessage, ToolCallMessage } from "../types.js";
 import { TOOL_STATE_ICON, BLOCKQUOTE_BAR, THINKING_SYMBOL } from "../lib/figures.js";
 import { theme } from "../lib/theme.js";
-import { ColumnsContext } from "../lib/contexts.js";
+import { ColumnsContext, CallbacksContext } from "../lib/contexts.js";
 import { useSpinnerFrame, useBlinkVisible } from "../lib/animation-clock.js";
 import { Collapsible } from "./Collapsible.js";
 import { SubagentActivity } from "./SubagentActivity.js";
@@ -199,7 +199,7 @@ function ToolActivity({ msg, indent }: { msg: Extract<RendererMessage, { kind: "
     return <TodoWriteActivity headerVis={vis} durationLabel={durationLabel} resultDisplay={resultDisplay} indent={indent} />;
   }
 
-  if (msg.name === "shell") {
+  if (msg.name === "shell" || msg.name === "admin_shell") {
     return <ShellActivity msg={msg} indent={indent} />;
   }
 
@@ -245,7 +245,10 @@ function ToolActivity({ msg, indent }: { msg: Extract<RendererMessage, { kind: "
   );
 }
 
-// ── 3a. ShellActivity — specialized shell command rendering ──
+// ── 3a. ShellActivity — specialized shell command rendering with live log tailing ──
+
+const POLL_INTERVAL_MS = 1500;
+const TAIL_DISPLAY_LINES = 15;
 
 function ShellActivity({ msg, indent }: { msg: Extract<RendererMessage, { kind: "tool_call" }>; indent?: boolean }) {
   const pad = indent ? 2 : 0;
@@ -256,12 +259,44 @@ function ShellActivity({ msg, indent }: { msg: Extract<RendererMessage, { kind: 
 
   const args = (msg.args ?? {}) as Record<string, unknown>;
   const command = String(args.command ?? "");
-  const terminalId = args.terminal_id ? String(args.terminal_id) : undefined;
+  const taskId = args.task_id ? String(args.task_id) : undefined;
   const description = args.description ? String(args.description) : undefined;
   const first = command.split("\n")[0] ?? "";
   const cmdLabel = first ? (first.length > 80 ? first.slice(0, 77) + "..." : first) : undefined;
-  const label = description ?? cmdLabel ?? (terminalId ? `wait ${terminalId}` : "");
+  const label = description ?? cmdLabel ?? (taskId ? `wait ${taskId}` : "");
   const showCommandExpander = command && command !== label;
+
+  const callbacks = useContext(CallbacksContext);
+  const [liveTail, setLiveTail] = useState<string>("");
+  const pollingRef = useRef(false);
+
+  const terminalId = (msg as ToolCallMessage).terminalId;
+  const shouldPoll = !isDone && !!terminalId && !!callbacks?.commandQuery;
+
+  const poll = useCallback(async () => {
+    if (!callbacks?.commandQuery || !terminalId) return;
+    try {
+      const r = await callbacks.commandQuery(
+        "read_terminal_tail",
+        [terminalId, String(TAIL_DISPLAY_LINES)],
+      );
+      if (r.ok && r.data) {
+        const data = r.data as { content?: string };
+        if (data.content) setLiveTail(data.content);
+      }
+    } catch { /* ignore polling errors */ }
+  }, [callbacks, terminalId]);
+
+  useEffect(() => {
+    if (!shouldPoll) { pollingRef.current = false; return; }
+    pollingRef.current = true;
+    let timer: ReturnType<typeof setInterval>;
+
+    void poll();
+    timer = setInterval(() => { if (pollingRef.current) void poll(); }, POLL_INTERVAL_MS);
+
+    return () => { pollingRef.current = false; clearInterval(timer); };
+  }, [shouldPoll, poll]);
 
   const headerRow = (
     <Box width="100%">
@@ -273,6 +308,8 @@ function ShellActivity({ msg, indent }: { msg: Extract<RendererMessage, { kind: 
       </Text>
     </Box>
   );
+
+  const liveLines = liveTail ? liveTail.split("\n").slice(-TAIL_DISPLAY_LINES) : [];
 
   return (
     <Box flexDirection="column" paddingLeft={pad + 2} width="100%">
@@ -287,6 +324,12 @@ function ShellActivity({ msg, indent }: { msg: Extract<RendererMessage, { kind: 
       ) : headerRow}
       {isDone ? (
         <ToolResultRow status={status} resultDisplay={resultDisplay} fullResult={msg.fullResultContent} />
+      ) : liveLines.length > 0 ? (
+        <Box flexDirection="column" paddingLeft={2} borderStyle="single" borderColor="ansi:blackBright" width="100%">
+          {liveLines.map((line, i) => (
+            <Box key={i}><Text dimColor>{line}</Text></Box>
+          ))}
+        </Box>
       ) : (
         <Box><Text dimColor>  {theme.toolResult.connector} {theme.toolResult.ellipsis}</Text></Box>
       )}

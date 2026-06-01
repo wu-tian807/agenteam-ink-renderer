@@ -46,6 +46,8 @@ export interface ToolCallMessage extends RendererMessageBase {
   fullResultContent?: string;
   durationMs?: number;
   subagentId?: string;
+  /** Set by hook:shellStarted — used for live terminal tail polling. */
+  terminalId?: string;
 }
 
 export interface ToolResultMessage extends RendererMessageBase {

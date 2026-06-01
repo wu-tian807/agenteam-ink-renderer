@@ -237,7 +237,7 @@ registerFormatter("hook:toolCall", (event) => {
     const type = String(a.type ?? "");
     const mode = String(a.mode ?? "foreground");
     visualDisplay = `${type}, ${mode}: ${task.slice(0, 80)}`;
-  } else if (name === "shell") {
+  } else if (name === "shell" || name === "admin_shell") {
     const a = args as Record<string, unknown>;
     const desc = a.description ? String(a.description) : undefined;
     const cmd = String(a.command ?? "");

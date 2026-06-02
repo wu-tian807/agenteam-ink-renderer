@@ -57,9 +57,9 @@ export function useStartupFlow(opts: {
     try {
       const raw = await dataSource.fetchAllEvents(agentId);
       if (!raw) return;
-      const allParsed = parseEventLines(raw);
+      const allParsed = await parseEventLines(raw);
       const events = trimToTurnBoundary(allParsed);
-      const { turns, sessionId, contextPct: replayedPct } = replayEvents(events, agentId);
+      const { turns, sessionId, contextPct: replayedPct } = await replayEvents(events, agentId);
       setCompletedTurns(turns);
       if (sessionId) setSessionLabel(sessionId);
       if (replayedPct > 0) setContextPct(replayedPct);

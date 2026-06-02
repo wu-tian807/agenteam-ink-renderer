@@ -1,5 +1,5 @@
 /**
- * @desc Auto-version script for @agenteam/types.
+ * @desc Auto-version script for @agenteam/ink-renderer.
  *
  *   Uses git tags (e.g. v0.1.0, v1.0.0) as the source of truth.
  *   Commits after a tag auto-increment the patch number.

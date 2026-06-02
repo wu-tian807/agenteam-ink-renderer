@@ -6,7 +6,7 @@
  * Full rendering avoids this; subagent sessions are small enough to afford it.
  *
  * Lifecycle:
- *   1. Replay: fetchAllEvents → parseEventLines → TurnAccumulator (batch) → setTurns
+ *   1. Replay: fetchAllEvents → parseEventLinesAsync → TurnAccumulator (batch) → setTurns
  *   2. Live:   subscribe to observeEvents, filter by subagentId, incremental TurnAccumulator
  */
 
@@ -132,7 +132,8 @@ export function SubagentPanel({ subagentId, dataSource }: SubagentPanelProps): R
         const raw = await dataSource.fetchAllEvents(subagentId);
         if (cancelled) return;
         if (raw) {
-          const events = parseEventLines(raw);
+          const events = await parseEventLines(raw);
+          if (cancelled) return;
           const task = extractTaskContent(events);
           if (task) setTaskInput(task);
           const replayTurns: CompletedTurn[] = [];

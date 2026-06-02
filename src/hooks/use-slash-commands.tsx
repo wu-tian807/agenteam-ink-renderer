@@ -491,7 +491,7 @@ export function useSlashCommands({
         const r = await callbacks.commandQuery!("fetch_session_events", [agentId], agentId);
         if (!r.ok) throw new Error(r.error);
         const raw = typeof r.data === "string" ? r.data : "";
-        const events = parseEventLines(raw);
+        const events = await parseEventLines(raw);
         // Most recent first so "undo my last message" is the default (top) row.
         // New-standard user messages only: `type: "message"` + `source: "user"`
         // (excludes agent-sourced messages and user-sourced agent_command).

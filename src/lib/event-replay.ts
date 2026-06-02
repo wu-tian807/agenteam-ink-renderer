@@ -2,6 +2,10 @@
  * Event replay — parse JSONL event streams and rebuild CompletedTurn[]
  * by feeding events through the shared TurnAccumulator.
  *
+ * parseEventLines / replayEvents yield to the event loop every
+ * YIELD_CHUNK items so the input box and animations stay responsive
+ * during large history replays.
+ *
  * isRunning is accepted externally (from TeamBoard) rather than
  * inferred from turnStart/turnEnd event pairing.
  */
@@ -15,15 +19,23 @@ export interface ReplayResult {
   contextPct: number;
 }
 
-export function parseEventLines(raw: string): StoredEvent[] {
+const YIELD_CHUNK = 150;
+
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((r) => setImmediate(r));
+}
+
+export async function parseEventLines(raw: string): Promise<StoredEvent[]> {
+  const lines = raw.split("\n");
   const events: StoredEvent[] = [];
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i]!.trim();
     if (!trimmed) continue;
     try {
       const rec = JSON.parse(trimmed) as StoredEvent;
       if (typeof rec.type === "string") events.push(rec);
     } catch { /* skip malformed */ }
+    if (i % YIELD_CHUNK === 0 && i > 0) await yieldToEventLoop();
   }
   return events;
 }
@@ -40,7 +52,7 @@ export function trimToTurnBoundary(events: StoredEvent[]): StoredEvent[] {
   return firstBoundary > 0 ? events.slice(firstBoundary) : events;
 }
 
-export function replayEvents(events: StoredEvent[], viewerId?: string): ReplayResult {
+export async function replayEvents(events: StoredEvent[], viewerId?: string): Promise<ReplayResult> {
   const turns: CompletedTurn[] = [];
   let sessionId: string | null = null;
   let contextPct = 0;
@@ -65,7 +77,10 @@ export function replayEvents(events: StoredEvent[], viewerId?: string): ReplayRe
     },
   }, viewerId);
 
-  for (const rec of events) acc.feed(rec);
+  for (let i = 0; i < events.length; i++) {
+    acc.feed(events[i]!);
+    if (i % YIELD_CHUNK === 0 && i > 0) await yieldToEventLoop();
+  }
   acc.flush();
 
   return { turns, sessionId, contextPct };

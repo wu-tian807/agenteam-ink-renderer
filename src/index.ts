@@ -84,6 +84,7 @@ export class InkRenderer {
 }
 
 // ─── Public API re-exports (consumed by ctl-command/ink-renderer.ts) ───
-export type { RendererCallbacks, RendererDataSource, DraftSnapshot } from "./lib/renderer-config.js";
+export type { RendererCallbacks, RendererDataSource, DraftSnapshot, SnippetPayload } from "./lib/renderer-config.js";
+export { subscribeTerminalFocus, getTerminalFocused } from "./ink/terminal-focus-state.js";
 export { rendererCacheStore, type InkCache } from "./lib/renderer-cache-store.js";
 export { VERSION } from "./version.js";

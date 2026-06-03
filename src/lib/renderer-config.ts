@@ -3,12 +3,17 @@
 import type { AgentNodeData, EventContent, EventHandoff } from "@agenteam/types";
 import type { CommandSpec, CommandResult } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
+import type { SnippetPayload } from "./snippet-ingest.js";
+
+export type { SnippetPayload };
 
 export interface RendererCallbacks {
   onUserInput(agentId: string, content: EventContent, handoff: EventHandoff, display?: { text: string; segments: InputSegment[] }): void;
   onAgentCommand(agentId: string, toolName: string, args: Record<string, string>): void;
   observeEvents(handler: (event: { source: string; type: string; payload: unknown; to?: string }, emitterId?: string) => void): () => void;
   emitEvent(event: { source: string; type: string; payload: unknown; ts: number; to?: string }): void;
+  /** IDE Bridge snippet delivery (VS Code extension → ink-renderer). */
+  observeSnippets?(handler: (payload: SnippetPayload) => void): () => void;
 
   // ── Command system (Phase 1.1) — optional so older subscribers stay compatible ──
   /** Pull command list from worker. */

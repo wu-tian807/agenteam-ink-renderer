@@ -4,7 +4,8 @@
 
 import React from "react";
 import type { OverlayFlowDeps } from "./types.js";
-import type { InstanceStatus } from "@agenteam/types";
+import type { InstanceStatus, ContainerStatus } from "@agenteam/types";
+import { isInstanceSelectable } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { CreateInstancePanel } from "../../components/CreateInstancePanel.js";
 import { TextInputPanel } from "../../components/TextInputPanel.js";
@@ -13,12 +14,16 @@ import { makeInstanceLoadItems, buildInstanceItems, pushConfirm } from "./helper
 const ACTION_CREATE = "➕ 新建 Instance";
 const ACTION_DELETE = "✗  删除 Instance";
 
-// Statuses the user can "enter" (open the chat view). Note `provisioning`
-// (container/team runtime coming up, worker exists) is enterable so the user
-// can watch progress, but `preparing` (instance-env git clone / pnpm install,
-// no worker yet) is deliberately absent → rendered as a disabled row.
-const SELECTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["running", "idle", "provisioning"]);
+// Enterability is computed from BOTH state machines via `isInstanceSelectable`
+// (running/idle, or any instance whose container is provisioning so the user can
+// watch progress). `preparing` (instance-env git clone / pnpm install, no worker
+// yet) and a bare `starting` stay non-enterable → rendered as disabled rows.
 const RESTARTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["error", "unloaded"]);
+
+type PickerInstance = { status: string; containerStatus?: string };
+function selectable(i: PickerInstance): boolean {
+  return isInstanceSelectable({ status: i.status as InstanceStatus, containerStatus: i.containerStatus as ContainerStatus | undefined });
+}
 
 // ── Create instance ──
 
@@ -137,7 +142,7 @@ export function showInstancePicker(
 
       return [
         ...buildInstanceItems(instances, {
-          disabled: i => !SELECTABLE_STATUSES.has(i.status) && !RESTARTABLE_STATUSES.has(i.status),
+          disabled: i => !selectable(i) && !RESTARTABLE_STATUSES.has(i.status),
           mapItem: (i, item) => RESTARTABLE_STATUSES.has(i.status)
             ? { ...item, hint: `${item.hint}  ⏎ Enter 重启` }
             : item,

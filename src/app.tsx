@@ -181,7 +181,22 @@ export function InkApp({
   const wrappedOnInterrupt = useCallback(() => {
     suppressAutoFlushRef.current = true;
     const agentId = activeAgentRef.current;
+    // Has the agent produced any visible output this turn? Derived from live
+    // render state: non-empty stream text (assistant answer mid-stream) or a
+    // draft turn (≥1 tool call / committed assistant message pushed). Pure
+    // thinking goes to `thinkingText` and is intentionally NOT counted, so
+    // reasoning models keep a generous rewind window.
+    const lastTurn = bridge.completedTurns[bridge.completedTurns.length - 1];
+    const hadOutput = bridge.streamText.trim() !== "" || lastTurn?._draft === true;
     onInterrupt?.(agentId || undefined);
+
+    // Ctrl+C policy:
+    //   • Agent running but NOTHING output yet → auto-rewind. The user fired a
+    //     message and bailed before any work happened; undo it cleanly and put
+    //     the text back in the input box to edit/resubmit.
+    //   • Agent already outputting              → interrupt only. Stop it where
+    //     it is and keep the conversation as-is (no rewind).
+    if (hadOutput) return;
 
     // Auto-undo: ask the worker's `rewind` command to fork the active
     // session at the most recent user_input (clipped to start at the last

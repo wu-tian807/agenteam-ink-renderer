@@ -27,7 +27,7 @@ import { CtrlCLayerContext } from "./hooks/use-ctrl-c-chain.js";
 import { PromptOverlayProvider } from "./hooks/prompt-overlay-context.js";
 import { segmentsToVisualDisplay } from "@agenteam/types";
 import { inputSegmentsToEventContent } from "./lib/input-submit-adapter.js";
-import { findSegmentAt } from "@agenteam/types";
+import { ingestSnippetIntoInput } from "./lib/snippet-ingest.js";
 import { ColumnsContext, OverlaySchedulerContext, DataSourceContext, CallbacksContext } from "./lib/contexts.js";
 import { ScreenLayout } from "./components/ScreenLayout.js";
 
@@ -165,35 +165,11 @@ export function InkApp({
     inputControlRef,
   });
 
-  // 5c. Snippet ingest — receive code snippets pushed from external tools
-  //     (Cursor/VSCode extension). Append to the input box so the user can
-  //     review or edit before sending.
+  // 5c. Snippet ingest — IDE Bridge (VS Code extension), not Gateway events.
   useEffect(() => {
-    return callbacks.observeEvents((event) => {
-      if (event.type !== "snippet_attached") return;
-      const payload = event.payload as Record<string, unknown>;
-      if (!payload) return;
-      const path = payload.path;
-      const content = payload.content;
-      if (typeof path !== "string" || typeof content !== "string") return;
-
-      const newSeg: InputSegment = {
-        type: "paste",
-        content,
-        source: {
-          path,
-          lineStart: typeof payload.lineStart === "number" ? payload.lineStart : undefined,
-          lineEnd: typeof payload.lineEnd === "number" ? payload.lineEnd : undefined,
-          language: typeof payload.language === "string" ? payload.language : undefined,
-        },
-      };
-      const ctrl = inputControlRef.current;
-      if (!ctrl) return;
-      const segs = [...ctrl.getSegments()];
-      const hit = findSegmentAt(segs, ctrl.getCursor());
-      const idx = hit ? (ctrl.getCursor() === hit.segOffset ? hit.segIdx : hit.segIdx + 1) : segs.length;
-      segs.splice(idx, 0, newSeg);
-      ctrl.setSegments(segs);
+    if (!callbacks.observeSnippets) return;
+    return callbacks.observeSnippets((payload) => {
+      ingestSnippetIntoInput(payload, inputControlRef.current);
     });
   }, [callbacks, inputControlRef]);
 

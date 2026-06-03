@@ -13,6 +13,10 @@ import { makeInstanceLoadItems, buildInstanceItems, pushConfirm } from "./helper
 const ACTION_CREATE = "➕ 新建 Instance";
 const ACTION_DELETE = "✗  删除 Instance";
 
+// Statuses the user can "enter" (open the chat view). Note `provisioning`
+// (container/team runtime coming up, worker exists) is enterable so the user
+// can watch progress, but `preparing` (instance-env git clone / pnpm install,
+// no worker yet) is deliberately absent → rendered as a disabled row.
 const SELECTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["running", "idle", "provisioning"]);
 const RESTARTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["error", "unloaded"]);
 

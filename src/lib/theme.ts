@@ -103,6 +103,7 @@ export const theme = {
   instanceStatus: {
     running: C.green,
     idle: C.yellow,
+    preparing: C.blackBright,
     provisioning: C.cyan,
     starting: C.cyan,
     stopping: C.yellow,

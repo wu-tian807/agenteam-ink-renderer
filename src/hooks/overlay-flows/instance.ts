@@ -4,7 +4,7 @@
 
 import React from "react";
 import type { OverlayFlowDeps } from "./types.js";
-import type { InstanceStatus, ContainerStatus } from "@agenteam/types";
+import type { InstanceStatus } from "@agenteam/types";
 import { isInstanceSelectable } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { CreateInstancePanel } from "../../components/CreateInstancePanel.js";
@@ -14,18 +14,15 @@ import { makeInstanceLoadItems, buildInstanceItems, pushConfirm } from "./helper
 const ACTION_CREATE = "➕ 新建 Instance";
 const ACTION_DELETE = "✗  删除 Instance";
 
-// Enterability is computed from BOTH state machines via `isInstanceSelectable`
-// (running/idle, or any instance whose container is provisioning so the user can
-// watch progress). `preparing` (instance-env git clone / pnpm install, no worker
-// yet) and a bare `starting` stay non-enterable → rendered as disabled rows.
+// Enterability follows the instance state machine only (see isInstanceSelectable):
+// `running` (interactable; a running instance rebuilding its container stays
+// enterable) or `idle` (routes to the team/pack picker). `preparing` / `starting`
+// (scheduler not up yet, incl. initial container build) and other transient
+// states stay non-enterable → rendered as disabled rows.
 const RESTARTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["error", "unloaded"]);
 
-type PickerInstance = { status: string; container?: { status?: string } };
-function selectable(i: PickerInstance): boolean {
-  return isInstanceSelectable({
-    status: i.status as InstanceStatus,
-    container: i.container?.status ? { status: i.container.status as ContainerStatus } : undefined,
-  });
+function selectable(i: { status: string }): boolean {
+  return isInstanceSelectable({ status: i.status as InstanceStatus });
 }
 
 // ── Create instance ──

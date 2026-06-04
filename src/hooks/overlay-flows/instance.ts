@@ -20,9 +20,12 @@ const ACTION_DELETE = "✗  删除 Instance";
 // yet) and a bare `starting` stay non-enterable → rendered as disabled rows.
 const RESTARTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["error", "unloaded"]);
 
-type PickerInstance = { status: string; containerStatus?: string };
+type PickerInstance = { status: string; container?: { status?: string } };
 function selectable(i: PickerInstance): boolean {
-  return isInstanceSelectable({ status: i.status as InstanceStatus, containerStatus: i.containerStatus as ContainerStatus | undefined });
+  return isInstanceSelectable({
+    status: i.status as InstanceStatus,
+    container: i.container?.status ? { status: i.container.status as ContainerStatus } : undefined,
+  });
 }
 
 // ── Create instance ──

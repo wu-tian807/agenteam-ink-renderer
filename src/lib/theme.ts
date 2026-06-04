@@ -99,17 +99,23 @@ export const theme = {
   // ── Spinner ──
   spinner: { color: C.yellow, frames: ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"] },
 
-  // ── Instance status ──
+  // ── Instance status (instance state machine) ──
   instanceStatus: {
     running: C.green,
     idle: C.yellow,
     preparing: C.blackBright,
-    provisioning: C.cyan,
     starting: C.cyan,
     stopping: C.yellow,
     restarting: C.yellow,
     error: C.red,
     unloaded: C.blackBright,
+  },
+
+  // ── Container status (separate state machine; rendered via displayStatus) ──
+  containerStatus: {
+    provisioning: C.cyan,
+    running: C.green,
+    stopped: C.blackBright,
   },
 
   // ── Context ring ──

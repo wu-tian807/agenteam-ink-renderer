@@ -4,7 +4,7 @@
 
 import React from "react";
 import type { OverlayFlowDeps } from "./types.js";
-import type { InstanceStatus } from "@agenteam/types";
+import type { InstanceInfo, InstanceStatus } from "@agenteam/types";
 import { isInstanceSelectable } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { CreateInstancePanel } from "../../components/CreateInstancePanel.js";
@@ -14,12 +14,12 @@ import { makeInstanceLoadItems, buildInstanceItems, pushConfirm } from "./helper
 const ACTION_CREATE = "➕ 新建 Instance";
 const ACTION_DELETE = "✗  删除 Instance";
 
-// Enterability follows the instance state machine only (see isInstanceSelectable):
-// `running` (interactable; a running instance rebuilding its container stays
-// enterable) or `idle` (routes to the team/pack picker). `preparing` / `starting`
-// (scheduler not up yet, incl. initial container build) and other transient
-// states stay non-enterable → rendered as disabled rows.
-const RESTARTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["error", "unloaded"]);
+// Stable, user-actionable states that get an Enter hint in the picker. For
+// `idle` we further inspect `InstanceInfo.hasTeam` to route Enter to either
+// restart (hasTeam=true) or the pack picker (hasTeam=false). `error` always
+// routes to restart (the previous failure reason rides along in
+// statusMessage).
+const RESTARTABLE_STATUSES: ReadonlySet<string> = new Set<InstanceStatus>(["error", "idle"]);
 
 function selectable(i: { status: string }): boolean {
   return isInstanceSelectable({ status: i.status as InstanceStatus });
@@ -128,7 +128,10 @@ export function showInstancePicker(
   const { scheduler, dataSource } = deps;
   if (!dataSource.listInstances) return;
 
-  const instanceStatusMap = new Map<string, string>();
+  // Cache enough of each instance to drive Enter routing without another fetch.
+  // For idle instances we route Enter based on hasTeam: true → restart, false →
+  // pack picker.
+  const instanceMetaMap = new Map<string, { status: string; hasTeam: boolean }>();
 
   scheduler.push({
     id: "instance-picker",
@@ -137,15 +140,23 @@ export function showInstancePicker(
     title: "选择 Instance",
     loadItems: async () => {
       const instances = await dataSource.listInstances!();
-      instanceStatusMap.clear();
-      for (const i of instances) instanceStatusMap.set(i.id, i.status);
+      instanceMetaMap.clear();
+      for (const i of instances) {
+        const inst = i as InstanceInfo;
+        instanceMetaMap.set(i.id, { status: i.status, hasTeam: inst.hasTeam ?? true });
+      }
 
       return [
         ...buildInstanceItems(instances, {
           disabled: i => !selectable(i) && !RESTARTABLE_STATUSES.has(i.status),
-          mapItem: (i, item) => RESTARTABLE_STATUSES.has(i.status)
-            ? { ...item, hint: `${item.hint}  ⏎ Enter 重启` }
-            : item,
+          mapItem: (i, item) => {
+            if (!RESTARTABLE_STATUSES.has(i.status)) return item;
+            const meta = instanceMetaMap.get(i.id);
+            const hint = i.status === "idle" && meta && !meta.hasTeam
+              ? `${item.hint}  ⏎ Enter 选 team`
+              : `${item.hint}  ⏎ Enter 重启`;
+            return { ...item, hint };
+          },
         }),
         { label: ACTION_CREATE },
         { label: ACTION_DELETE },
@@ -162,8 +173,21 @@ export function showInstancePicker(
         return;
       }
 
-      const status = instanceStatusMap.get(item.label);
-      if (status && RESTARTABLE_STATUSES.has(status) && dataSource.restartInstance) {
+      const meta = instanceMetaMap.get(item.label);
+      if (!meta) {
+        setInstanceId?.(item.label);
+        return;
+      }
+
+      // idle without team → route to the pack picker; user must pick a team
+      // before the instance can run.
+      if (meta.status === "idle" && !meta.hasTeam) {
+        showLoadPackForInstance(deps, item.label);
+        return;
+      }
+
+      // error / idle (with team) → manual restart.
+      if (RESTARTABLE_STATUSES.has(meta.status) && dataSource.restartInstance) {
         attemptRestart(deps, item.label, setInstanceId);
         return;
       }

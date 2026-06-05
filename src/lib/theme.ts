@@ -102,13 +102,12 @@ export const theme = {
   // ── Instance status (instance state machine) ──
   instanceStatus: {
     running: C.green,
-    idle: C.yellow,
+    idle: C.blackBright,
     preparing: C.blackBright,
     starting: C.cyan,
     stopping: C.yellow,
     restarting: C.yellow,
     error: C.red,
-    unloaded: C.blackBright,
   },
 
   // ── Container status (separate state machine; rendered via displayStatus) ──

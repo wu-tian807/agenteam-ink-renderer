@@ -1,24 +1,40 @@
 /** @desc Shared helpers for overlay-flow item construction and confirmations. */
 
-import type { ProvisioningPhase } from "@agenteam/types";
-import { PROVISIONING_PHASE_LABEL } from "@agenteam/types";
+import type { ProvisioningPhase, InstanceStatus, ContainerStatus } from "@agenteam/types";
+import { PROVISIONING_PHASE_LABEL, displayStatus } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { theme } from "../../lib/theme.js";
 import type { RendererDataSource, SelectItem, OverlayLayout } from "../../types.js";
 import type { OverlaySchedulerResult } from "../use-overlay-scheduler.js";
 
-type InstanceLike = { id: string; status: string; statusMessage?: string; provisioningPhase?: string };
+// Mirrors the wire shape: an instance shell + an optional, separate container
+// state machine. The two are combined only here (rendering), never in the data.
+type ContainerLike = { status?: string; provisioningPhase?: string };
+type InstanceLike = { id: string; status: string; statusMessage?: string; container?: ContainerLike };
 
-export function formatInstanceHint(i: InstanceLike): string {
-  if (i.status === "provisioning" && i.provisioningPhase) {
-    const label = PROVISIONING_PHASE_LABEL[i.provisioningPhase as ProvisioningPhase];
-    if (label) return `[provisioning] ${label}`;
-  }
-  return `[${i.status}]${i.statusMessage ? ` ${i.statusMessage}` : ""}`;
+// `displayStatus` collapses the two state machines into the single status the
+// picker should surface (see @agenteam/types).
+function viewStatus(i: InstanceLike): InstanceStatus | "provisioning" {
+  return displayStatus({
+    status: i.status as InstanceStatus,
+    container: i.container?.status ? { status: i.container.status as ContainerStatus, provisioningPhase: i.container.provisioningPhase as ProvisioningPhase | undefined } : undefined,
+  });
 }
 
-export function instanceHintColor(status: string): string {
-  return theme.instanceStatus[status as keyof typeof theme.instanceStatus] ?? C.blackBright;
+export function formatInstanceHint(i: InstanceLike): string {
+  const disp = viewStatus(i);
+  if (disp === "provisioning") {
+    const phase = i.container?.provisioningPhase;
+    const label = phase ? PROVISIONING_PHASE_LABEL[phase as ProvisioningPhase] : undefined;
+    return label ? `[provisioning] ${label}` : `[provisioning]`;
+  }
+  return `[${disp}]${i.statusMessage ? ` ${i.statusMessage}` : ""}`;
+}
+
+export function instanceHintColor(i: InstanceLike): string {
+  const disp = viewStatus(i);
+  const palette = disp === "provisioning" ? theme.containerStatus : theme.instanceStatus;
+  return (palette as Record<string, string>)[disp] ?? C.blackBright;
 }
 
 /** Map an instance list into SelectItems with consistent hint + hintColor. */
@@ -33,7 +49,7 @@ export function buildInstanceItems(
     const item: SelectItem = {
       label: i.id,
       hint: formatInstanceHint(i),
-      hintColor: instanceHintColor(i.status),
+      hintColor: instanceHintColor(i),
       disabled: opts?.disabled?.(i),
     };
     return opts?.mapItem ? opts.mapItem(i, item) : item;

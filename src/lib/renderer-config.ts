@@ -70,7 +70,7 @@ export interface RendererDataSource {
   /** Fetch control plane overview (optional). */
   fetchControlOverview?(): Promise<string | null>;
   /** List all available instances from the Gateway. */
-  listInstances?(): Promise<Array<{ id: string; status: string; statusMessage?: string; provisioningPhase?: string }>>;
+  listInstances?(): Promise<Array<{ id: string; status: string; statusMessage?: string; container?: { status?: string; provisioningPhase?: string } }>>;
   /** Read cached agent for a given instance. Returns null if not cached. */
   readCachedAgent?(instanceId: string): string | null;
   /** Cache agent selection for a given instance. */

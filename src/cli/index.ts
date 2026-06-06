@@ -77,3 +77,4 @@ function isGatewayUnreachable(err: unknown): boolean {
 
 export { InkRendererSubscriber } from "./subscriber.js";
 export type { SubscriberOptions } from "./subscriber.js";
+export { runRendererCli } from "./command.js";

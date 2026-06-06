@@ -9,12 +9,21 @@ import { extractMessageBodyText } from "@agenteam/types";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
-import { resolveStateDir } from "@agenteam/types";
+import { getSharedPaths } from "@agenteam/types";
 import { registerSubagentFormatters } from "./subagent-events.js";
 
 type Formatter = (event: StoredEvent) => RendererMessage | null;
 
-const MEDIA_CACHE_DIR = join(resolveStateDir(), "cache", "renderer", "medias");
+// Lazy resolve so runRenderer({ stateDir: ... }) seeds the singleton before
+// the first media decode. Module-load-time `resolveStateDir()` would lock in
+// the default before that priming call had a chance to run.
+let _mediaCacheDir: string | undefined;
+function mediaCacheDir(): string {
+  if (!_mediaCacheDir) {
+    _mediaCacheDir = join(getSharedPaths().cacheDir(), "renderer", "medias");
+  }
+  return _mediaCacheDir;
+}
 let mediaDirReady = false;
 
 /**
@@ -46,11 +55,11 @@ function resolveMediaPart(part: Record<string, unknown>): { path: string; label:
   // semantics correct (same content = same file) and avoids the alias.
   // The user-facing label still shows the original basename.
   const cachedName = `${hash}.${ext}`;
-  const cachePath = join(MEDIA_CACHE_DIR, cachedName);
+  const cachePath = join(mediaCacheDir(), cachedName);
   const label = name || cachedName;
   try {
     if (!existsSync(cachePath)) {
-      if (!mediaDirReady) { mkdirSync(MEDIA_CACHE_DIR, { recursive: true }); mediaDirReady = true; }
+      if (!mediaDirReady) { mkdirSync(mediaCacheDir(), { recursive: true }); mediaDirReady = true; }
       writeFileSync(cachePath, Buffer.from(data, "base64"));
     }
     return { path: cachePath, label };

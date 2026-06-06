@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { writeFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveStateDir } from "@agenteam/types";
+import { getSharedPaths } from "@agenteam/types";
 import type { DraftSnapshot } from "./renderer-config.js";
 
 export interface InkCache {
@@ -19,10 +19,6 @@ export interface InkCache {
 }
 
 const FLUSH_DEBOUNCE_MS = 200;
-
-function cachePath(): string {
-  return join(resolveStateDir(), "cache", "renderer", "ink-cache.json");
-}
 
 function readCache(path: string): InkCache {
   try {
@@ -52,9 +48,25 @@ function atomicWriteSync(path: string, text: string): void {
 }
 
 class RendererCacheStore {
-  private readonly path = cachePath();
-  private cache: InkCache = readCache(this.path);
+  // path is resolved on first access via getSharedPaths(), so callers that
+  // prime the singleton with a non-default stateDir (e.g. runRenderer) win.
+  // Reading at field-init time would lock in the default `~/.agenteam` before
+  // runRenderer's getSharedPaths(stateDir) call has a chance to seed it.
+  private _path: string | undefined;
+  private _cache: InkCache | undefined;
   private flushTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private get path(): string {
+    if (!this._path) {
+      this._path = join(getSharedPaths().cacheDir(), "renderer", "ink-cache.json");
+    }
+    return this._path;
+  }
+
+  private get cache(): InkCache {
+    if (!this._cache) this._cache = readCache(this.path);
+    return this._cache;
+  }
 
   snapshot(): InkCache {
     return this.cache;

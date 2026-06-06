@@ -1,6 +1,6 @@
 // @desc RendererConfig — state persistence, data source abstraction, active agent resolution
 
-import type { AgentNodeData, EventContent, EventHandoff } from "@agenteam/types";
+import type { AgentNodeData, EventContent, EventHandoff, InstanceInfo } from "@agenteam/types";
 import type { CommandSpec, CommandResult } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
 import type { SnippetPayload } from "./snippet-ingest.js";
@@ -69,8 +69,19 @@ export interface RendererDataSource {
   fetchDefaultAgent?(): Promise<string | null>;
   /** Fetch control plane overview (optional). */
   fetchControlOverview?(): Promise<string | null>;
-  /** List all available instances from the Gateway. */
-  listInstances?(): Promise<Array<{ id: string; status: string; statusMessage?: string; container?: { status?: string; provisioningPhase?: string } }>>;
+  /**
+   * List all available instances from the Gateway.
+   *
+   * MUST forward the full InstanceInfo (especially `hasTeam`) without
+   * stripping fields. Several startup-flow decisions key off `hasTeam`
+   * directly — e.g. `use-startup-flow.ts` shows the pack picker only when
+   * `hasTeam === false`, NOT when `listAgents()` happens to return empty
+   * (worker-still-starting also returns empty and that path used to mis-fire
+   * a pack picker over the user's screen). Adapters that re-shape the
+   * response into a stripped-down object will silently regress that
+   * decision back to the legacy `agents.length === 0` heuristic.
+   */
+  listInstances?(): Promise<InstanceInfo[]>;
   /** Read cached agent for a given instance. Returns null if not cached. */
   readCachedAgent?(instanceId: string): string | null;
   /** Cache agent selection for a given instance. */

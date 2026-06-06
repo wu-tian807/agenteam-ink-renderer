@@ -1,6 +1,6 @@
 {
   "name": "@agenteam/ink-renderer",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "description": "AgenTeam terminal UI renderer — Ink-based interactive agent conversation interface",
   "type": "module",
   "main": "src/index.ts",

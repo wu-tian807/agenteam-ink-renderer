@@ -87,18 +87,56 @@ export function useStartupFlow(opts: {
     }
   }, [instanceId, overlayActive]);
 
-  // Condition 2: instance selected but no agent → try cache/default, else agent picker
+  // Condition 2: instance selected but no agent → resolve cached/default,
+  // else either show the pack picker (no team on disk) or the agent picker.
+  //
+  // Why we look at hasTeam (not agents.length) to decide pack-vs-agent picker:
+  //   `agents.length === 0` is what we *used* to gate the pack picker on, but
+  //   that signal conflates two unrelated states — "instance has no pack" vs.
+  //   "worker hasn't surfaced its agents yet". Worker-still-starting,
+  //   provisioning-half-failed, or a transient IPC blip all return [] from
+  //   listAgents() and used to mis-fire the pack picker over the user's
+  //   screen, even when team/manifest.json was right there on disk. Past
+  //   fixes (provision script paths, async git ops) made the happy path
+  //   return non-empty faster, but the signal itself was still wrong.
+  //   `hasTeam` is the static disk truth (`team/manifest.json` existence)
+  //   surfaced by the gateway, orthogonal to worker lifecycle — the real
+  //   answer to "should we ask the user to pick a pack?".
   useEffect(() => {
     if (!instanceId || activeAgent || overlayActive) return;
 
     (async () => {
-      const agents = await dataSource.listAgents();
-      if (agents.length === 0) {
+      // Probe hasTeam first. If we can read it and it's false, the user
+      // really has no pack loaded — show the picker. If listInstances is
+      // unavailable (single-instance mode / older data source / network
+      // hiccup), treat hasTeam as unknown and prefer NOT to interrupt with
+      // a pack picker; fall through to the agents path so a transient
+      // problem doesn't bury the user's screen under an overlay.
+      let hasTeam: boolean | undefined;
+      if (dataSource.listInstances) {
+        try {
+          const instances = await dataSource.listInstances();
+          hasTeam = instances.find(i => i.id === instanceId)?.hasTeam;
+        } catch { /* hasTeam stays undefined → not stale, just unknown */ }
+      }
+
+      if (hasTeam === false) {
         if (dataSource.listPacks && dataSource.teamLoad) {
           showLoadPack();
         } else {
           showAgentPicker("fullscreen");
         }
+        return;
+      }
+
+      const agents = await dataSource.listAgents();
+      if (agents.length === 0) {
+        // hasTeam is true (or unknown) but the worker isn't reporting agents
+        // yet. Don't pop the pack picker — that's the bug we just removed.
+        // Show the agent picker; it self-polls and will populate as the
+        // worker comes up. If the team really is broken, the user can pick
+        // /load-pack from the slash menu.
+        showAgentPicker("fullscreen");
         return;
       }
 

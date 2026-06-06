@@ -4,7 +4,7 @@
 
 import React from "react";
 import type { OverlayFlowDeps } from "./types.js";
-import type { InstanceInfo, InstanceStatus } from "@agenteam/types";
+import type { InstanceStatus } from "@agenteam/types";
 import { isInstanceSelectable } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { CreateInstancePanel } from "../../components/CreateInstancePanel.js";
@@ -142,8 +142,7 @@ export function showInstancePicker(
       const instances = await dataSource.listInstances!();
       instanceMetaMap.clear();
       for (const i of instances) {
-        const inst = i as InstanceInfo;
-        instanceMetaMap.set(i.id, { status: i.status, hasTeam: inst.hasTeam ?? true });
+        instanceMetaMap.set(i.id, { status: i.status, hasTeam: i.hasTeam ?? true });
       }
 
       return [

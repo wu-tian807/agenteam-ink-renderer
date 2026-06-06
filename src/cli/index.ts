@@ -7,7 +7,7 @@
  * args and forwarding them here.
  */
 
-import { resolveStateDir } from "@agenteam/types";
+import { resolveStateDir, getSharedPaths } from "@agenteam/types";
 import { InkRendererSubscriber, resolveStartupInstanceId } from "./subscriber.js";
 
 export interface RunRendererOptions {
@@ -34,6 +34,9 @@ export interface RunRendererOptions {
  */
 export async function runRenderer(opts: RunRendererOptions = {}): Promise<void> {
   const stateDir = opts.stateDir ?? resolveStateDir();
+  // Prime the shared-paths singleton early so any subsequent caller in this
+  // process picks up our explicit stateDir (idempotent — first call wins).
+  getSharedPaths(stateDir);
   const instanceId = await resolveStartupInstanceId({ stateDir, cliArg: opts.instanceId });
 
   const sub = new InkRendererSubscriber({ stateDir, instanceId });

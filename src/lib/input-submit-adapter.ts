@@ -1,4 +1,4 @@
-import type { ContentPart, EventContent } from "@agenteam/types";
+import type { ContentPart, EventContent, RoutedFilePathPart } from "@agenteam/types";
 import { fileToContentPart, isBinaryFile } from "@agenteam/types";
 import type { InputSegment } from "@agenteam/types";
 import { lookup } from "mime-types";
@@ -33,10 +33,11 @@ export async function inputSegmentsToEventContent(segments: InputSegment[]): Pro
     const mimeType = seg.mimeType || lookup(seg.path) || "application/octet-stream";
     const binary = await isBinaryFile(seg.path).catch(() => true);
     const part = fileToContentPart(seg.path, mimeType, binary);
-    // User-supplied path originates on the host — mark ALL path-based parts
-    // (text_file / file / *_file) so readFileBytes / readMediaBytes skip the
-    // sandboxFs bridge. fileToContentPart only returns path-based parts.
-    parts.push({ ...part, inContainer: false });
+    // User-supplied path originates on the host — attach `inContainer: false`
+    // (RoutedFilePathPart augment from @agenteam/types) so the host's
+    // `hostMediaReaders` reads via node:fs instead of the sandbox bridge.
+    const routed: RoutedFilePathPart = { ...part, inContainer: false };
+    parts.push(routed);
   }
 
   flushText();

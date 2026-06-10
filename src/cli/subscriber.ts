@@ -54,7 +54,15 @@ export class InkRendererSubscriber {
   private readonly stateDir: string;
   /** Pending command RPCs: requestId → resolver (30s timeout, then rejects). */
   private pendingCommands = new Map<string, (result: CommandResult) => void>();
+  /** Pending emit ack RPCs: requestId → resolver. Mirrors pendingCommands but
+   *  carries DeliveryResult for the user-input → worker EventBus path. */
+  private pendingEmits = new Map<string, (result: { ok: boolean; error?: string }) => void>();
   private nextRequestId = 0;
+  /** Per-emit ack timeout. Old gateways pre-dating the emit_ok/emit_error
+   *  frames never reply at all — we fall back to optimistic ok:true after
+   *  this many ms so the renderer doesn't hang on every send. New gateways
+   *  reply in <5ms typical, well within the budget. */
+  private static readonly EMIT_ACK_TIMEOUT_MS = 1000;
 
   private static readonly BASE_DELAY_MS = 2_000;
   private static readonly MAX_DELAY_MS = 30_000;
@@ -95,6 +103,24 @@ export class InkRendererSubscriber {
         if (!resolve) return;
         this.pendingCommands.delete(requestId);
         resolve(frame.result as CommandResult);
+        return;
+      }
+      if (frame.type === "emit_ok") {
+        const requestId = frame.requestId as string | undefined;
+        if (!requestId) return;
+        const resolve = this.pendingEmits.get(requestId);
+        if (!resolve) return;
+        this.pendingEmits.delete(requestId);
+        resolve({ ok: true });
+        return;
+      }
+      if (frame.type === "emit_error") {
+        const requestId = frame.requestId as string | undefined;
+        if (!requestId) return;
+        const resolve = this.pendingEmits.get(requestId);
+        if (!resolve) return;
+        this.pendingEmits.delete(requestId);
+        resolve({ ok: false, error: frame.reason as string | undefined });
         return;
       }
       if (frame.type !== "event" || (frame.instanceId != null && frame.instanceId !== this.currentInstanceId) || !frame.event) return;
@@ -144,6 +170,10 @@ export class InkRendererSubscriber {
       resolve({ ok: false, error: "Subscriber stopped" });
     }
     this.pendingCommands.clear();
+    for (const resolve of this.pendingEmits.values()) {
+      resolve({ ok: false, error: "Subscriber stopped" });
+    }
+    this.pendingEmits.clear();
     if (this.ws) {
       this.ws.close(1000);
       this.ws = null;
@@ -155,14 +185,40 @@ export class InkRendererSubscriber {
     this.currentInstanceId = newId;
   }
 
-  /** Send an emit frame tagged with the current instanceId. No-op if WS isn't open. */
-  private sendEmit(event: Record<string, unknown>): void {
-    if (!this.ws || this.ws.readyState !== 1) return;
-    this.ws.send(JSON.stringify({
-      type: "emit",
-      instanceId: this.currentInstanceId,
-      event,
-    }));
+  /** Send an emit frame and await the gateway's reply (`emit_ok` /
+   *  `emit_error`). If no reply arrives within EMIT_ACK_TIMEOUT_MS the renderer
+   *  falls back to optimistic ok:true — this preserves backward compat with
+   *  pre-emit-ack gateways that never reply, while modern gateways always
+   *  respond well inside the budget (<5ms typical).
+   *
+   *  Never rejects — errors are always returned as { ok: false, error }. */
+  private sendEmit(event: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
+    return new Promise((resolve) => {
+      if (!this.ws || this.ws.readyState !== 1) {
+        resolve({ ok: false, error: "WS not connected" });
+        return;
+      }
+      const requestId = `emit-${++this.nextRequestId}-${Date.now()}`;
+      let timer: NodeJS.Timeout | null = null;
+      const wrappedResolve = (result: { ok: boolean; error?: string }) => {
+        if (timer) clearTimeout(timer);
+        resolve(result);
+      };
+      this.pendingEmits.set(requestId, wrappedResolve);
+      timer = setTimeout(() => {
+        // Old gateway never replies. Optimistic fallback: assume ok.
+        if (this.pendingEmits.has(requestId)) {
+          this.pendingEmits.delete(requestId);
+          wrappedResolve({ ok: true });
+        }
+      }, InkRendererSubscriber.EMIT_ACK_TIMEOUT_MS);
+      this.ws.send(JSON.stringify({
+        type: "emit",
+        instanceId: this.currentInstanceId,
+        requestId,
+        event,
+      }));
+    });
   }
 
   /**
@@ -391,17 +447,22 @@ export class InkRendererSubscriber {
     const observers = this.observers;
     return {
       onUserInput(agentId, content, handoff, display) {
-        self.sendEmit({
+        return self.sendEmit({
           source: "user", type: "message",
           payload: { content, display },
           ts: Date.now(), to: agentId, handoff,
         });
       },
       onAgentCommand(agentId, toolName, cmdArgs) {
-        self.sendEmit({
+        // Best-effort — agent_command paths don't gate user-visible state on
+        // delivery (the worker either has the agent or it doesn't). Log if
+        // gateway returns ok:false; don't propagate.
+        void self.sendEmit({
           source: "user", type: "agent_command",
           payload: { toolName, args: cmdArgs, agentId },
           ts: Date.now(),
+        }).then((r) => {
+          if (!r.ok) console.warn(`[subscriber] agent_command emit dropped: ${r.error}`);
         });
       },
       observeEvents(handler) {
@@ -410,9 +471,6 @@ export class InkRendererSubscriber {
         };
         observers.add(h);
         return () => { observers.delete(h); };
-      },
-      emitEvent(event) {
-        self.sendEmit(event);
       },
       observeSnippets(handler) {
         self.snippetObservers.add(handler);

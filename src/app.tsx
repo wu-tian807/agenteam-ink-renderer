@@ -307,7 +307,23 @@ export function InkApp({
     const targetAgent = activeAgentRef.current;
     const visualDisplay = segmentsToVisualDisplay(segments);
     const content = await inputSegmentsToEventContent(segments);
-    callbacks.onUserInput(targetAgent, content, handoff, { text: visualDisplay, segments });
+    const result = await callbacks.onUserInput(targetAgent, content, handoff, { text: visualDisplay, segments });
+    if (!result.ok) {
+      // End-to-end ack failed (WS not connected, instance restarting, worker
+      // dead, EventBus rejected, …). Don't drop the user's message into a
+      // black hole — re-queue at head so the next auto-flush on a real
+      // turnEnd retries delivery. Restart cycles self-resolve this way:
+      // dispatch fails during restart → message sits at head → first real
+      // turnEnd after worker comes back triggers retry → real send.
+      reservedQueueRef.current.requeueHead({
+        id: `retry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text: visualDisplay,
+        segments,
+        visualDisplay,
+        createdAt: Date.now(),
+      });
+    }
+    return result;
   }, [callbacks]);
 
   const handleSubmit = useCallback(async (text: string, segments: InputSegment[]) => {

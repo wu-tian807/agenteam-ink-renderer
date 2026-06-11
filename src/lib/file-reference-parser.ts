@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { lookup as mimeLookup } from "mime-types";
@@ -8,6 +8,68 @@ import type { InputSegment } from "@agenteam/types";
 type FileSegment = Extract<InputSegment, { type: "file" }>;
 
 const WINDOWS_PATH_RE = /^[A-Za-z]:\\/;
+
+/** Sync subset of {@link parseTextAsFileSegments} — handles the common
+ *  drag-drop / single-path paste case (file:// URI, absolute path, relative
+ *  path). Skips WSL Windows-path conversion (which requires spawning
+ *  `wslpath`); WSL drag-drop falls back to text paste in that rare case.
+ *
+ *  Returns a single file segment if `text` is a single-line path to an
+ *  existing file, null otherwise. **Synchronous** — safe to use in keypress
+ *  handlers without racing a fast Enter submit. */
+export function tryParsePathSync(
+  text: string,
+  baseDir = process.cwd(),
+): FileSegment | null {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  if (!normalized || normalized.includes("\n")) return null;
+
+  const path = normalizePotentialPathSync(normalized, baseDir);
+  if (!path || !existsSync(path)) return null;
+
+  try {
+    const info = statSync(path);
+    if (!info.isFile()) return null;
+  } catch { return null; }
+
+  const mimeType = inferMimeType(path);
+  return {
+    type: "file",
+    path,
+    mimeType: mimeType ?? undefined,
+    modality: inferModality(path, mimeType),
+  };
+}
+
+function normalizePotentialPathSync(raw: string, baseDir: string): string | null {
+  const trimmed = unwrapQuotedPath(raw.trim());
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("vscode-remote://")) {
+    const remote = normalizeVsCodeRemoteUri(trimmed);
+    return remote ? normalizePotentialPathSync(remote, baseDir) : null;
+  }
+
+  if (trimmed.startsWith("file://")) {
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== "file:") return null;
+      const pathname = decodeURIComponent(url.pathname);
+      const filePath = /^\/[A-Za-z]:\//.test(pathname) ? pathname.slice(1) : pathname;
+      return normalizePotentialPathSync(filePath, baseDir);
+    } catch {
+      return null;
+    }
+  }
+
+  // WSL Windows-path conversion needs spawning wslpath — skip in sync path.
+  // Falls back to text paste; user can manually attach.
+  if (isWsl() && WINDOWS_PATH_RE.test(trimmed)) return null;
+
+  const unescaped = trimmed.replace(/\\([ "\\'()])/g, "$1");
+  if (unescaped.startsWith("/")) return unescaped;
+  return resolve(baseDir, unescaped);
+}
 
 export async function parseTextAsFileSegments(
   text: string,

@@ -25,7 +25,7 @@
 import { useCallback, useReducer, useRef } from "react";
 import type { Key, InputEvent } from "../ink/events/input-event.js";
 import type { InputSegment } from "../types.js";
-import { parseTextAsFileSegments } from "../lib/file-reference-parser.js";
+import { tryParsePathSync } from "../lib/file-reference-parser.js";
 import { pullSystemMedia } from "../lib/system-media-ingress.js";
 import {
   segLen, segContent, totalLen, cloneSegments,
@@ -145,8 +145,18 @@ export function useInputState({
     const isPasted = !!(event?.keypress?.isPasted);
 
     /**
-     * Shared async path for multi-character input (bracketed paste or IDE drag).
-     * Tries file path detection first; falls back to paste-block or plain text.
+     * Synchronous path for multi-character input (bracketed paste or IDE drag).
+     * Handles single-file drag-drop (file:// URI / absolute path) via sync
+     * detection; everything else falls through to immediate text/paste insert.
+     *
+     * Why fully synchronous: previous async file-detection raced a fast Enter
+     * pressed during the await window — segments-on-submit captured the
+     * pre-paste state, dropping the user's pasted message. Sync insert keeps
+     * the buffer state consistent within a single keypress tick.
+     *
+     * Trade-off: WSL Windows-path drag-drop (which needs `wslpath` spawn) and
+     * multi-line file-list pastes are no longer auto-attached as files; they
+     * land as text/paste. User can manually attach in those rare cases.
      */
     const BATCH_PASTE_THRESHOLD = 200;
 
@@ -158,25 +168,26 @@ export function useInputState({
         return;
       }
 
-      const fallback = () => {
-        const s = cloneSegments(segsRef.current);
-        const pos = cursorRef.current;
-        if (normalized.includes("\n")) {
-          insertPasteAt(s, pos, normalized);
-        } else {
-          insertSegmentAt(s, pos, normalized, "text");
-        }
-        update(s, pos + normalized.length);
-      };
-      parseTextAsFileSegments(normalized).then(fileSegs => {
-        if (fileSegs && fileSegs.length > 0) {
+      // Try sync single-file path detection (drag-drop, file:// URI, abs path).
+      if (!normalized.includes("\n")) {
+        const fileSeg = tryParsePathSync(normalized);
+        if (fileSeg) {
           const s = cloneSegments(segsRef.current);
-          s.push(...fileSegs);
-          update(s, cursorRef.current + fileSegs.length);
-        } else {
-          fallback();
+          s.push(fileSeg);
+          update(s, cursorRef.current + 1);
+          return;
         }
-      }).catch(fallback);
+      }
+
+      // Default: sync insert as text/paste at cursor position.
+      const s = cloneSegments(segsRef.current);
+      const pos = cursorRef.current;
+      if (normalized.includes("\n")) {
+        insertPasteAt(s, pos, normalized);
+      } else {
+        insertSegmentAt(s, pos, normalized, "text");
+      }
+      update(s, pos + normalized.length);
     };
 
     // ── Bracketed paste ──

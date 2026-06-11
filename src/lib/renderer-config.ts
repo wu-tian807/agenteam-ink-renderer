@@ -7,11 +7,22 @@ import type { SnippetPayload } from "./snippet-ingest.js";
 
 export type { SnippetPayload };
 
+/** Result of a delivery-confirmed callback (e.g. onUserInput). End-to-end:
+ *  ok=true means the worker received the event and EventBus.emit completed
+ *  (NOT that the agent already processed it — that's a turn-level concern).
+ *  ok=false carries `error` describing why (worker dead, IPC stuck, etc). */
+export interface DeliveryResult {
+  ok: boolean;
+  error?: string;
+}
+
 export interface RendererCallbacks {
-  onUserInput(agentId: string, content: EventContent, handoff: EventHandoff, display?: { text: string; segments: InputSegment[] }): void;
+  /** Submit user input to a target agent. Awaits end-to-end ack so callers
+   *  (app.tsx dispatchAs) can detect failures and re-queue without losing
+   *  the message into a black hole. */
+  onUserInput(agentId: string, content: EventContent, handoff: EventHandoff, display?: { text: string; segments: InputSegment[] }): Promise<DeliveryResult>;
   onAgentCommand(agentId: string, toolName: string, args: Record<string, string>): void;
   observeEvents(handler: (event: { source: string; type: string; payload: unknown; to?: string }, emitterId?: string) => void): () => void;
-  emitEvent(event: { source: string; type: string; payload: unknown; ts: number; to?: string }): void;
   /** IDE Bridge snippet delivery (VS Code extension → ink-renderer). */
   observeSnippets?(handler: (payload: SnippetPayload) => void): () => void;
 

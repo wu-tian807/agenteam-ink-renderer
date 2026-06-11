@@ -24,6 +24,11 @@ export interface ReservedQueueApi {
   size: number;
   enqueue(text: string, segments: InputSegment[]): ReservedItem;
   dequeueHead(): ReservedItem | null;
+  /** Re-insert an item at the front of the queue. Used when a dispatch fails
+   *  end-to-end (gateway / worker rejected the emit) — putting it back at
+   *  position 0 lets the next auto-flush try again, and the user sees the
+   *  message still queued instead of vanishing. */
+  requeueHead(item: ReservedItem): void;
   /** Remove a queued item by id (used by both `[del]` and `[send]` rows). */
   removeById(id: string): ReservedItem | null;
   /** Update an existing item's content in place (used by the edit flow). */
@@ -71,6 +76,10 @@ export function useReservedQueue(): ReservedQueueApi {
     return head;
   }, []);
 
+  const requeueHead = useCallback((item: ReservedItem): void => {
+    set(prev => [item, ...prev]);
+  }, []);
+
   const updateById = useCallback((id: string, text: string, segments: InputSegment[]): boolean => {
     const idx = ref.current.findIndex(i => i.id === id);
     if (idx < 0) return false;
@@ -87,6 +96,7 @@ export function useReservedQueue(): ReservedQueueApi {
     size: items.length,
     enqueue,
     dequeueHead,
+    requeueHead,
     removeById,
     updateById,
     setItems: set,

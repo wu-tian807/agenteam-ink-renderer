@@ -9,10 +9,11 @@
  * owns all rendering decisions (grid dimensions, symbols, colors, layout).
  */
 
-import React from "react";
+import React, { useRef } from "react";
 import { default as Box } from "../ink/components/Box.js";
 import { default as Text } from "../ink/components/Text.js";
-import { default as ScrollBox } from "../ink/components/ScrollBox.js";
+import { default as ScrollBox, type ScrollBoxHandle } from "../ink/components/ScrollBox.js";
+import { useScrollKeys } from "../hooks/use-scroll-keys.js";
 import { theme } from "../lib/theme.js";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -239,8 +240,11 @@ export function ContextPanel({ data }: ContextPanelProps): React.JSX.Element {
   const sumTokens = data.categories.reduce((acc, c) => acc + c.tokens, 0);
   const freeTokens = Math.max(0, data.contextWindow - sumTokens);
 
+  const scrollRef = useRef<ScrollBoxHandle>(null);
+  useScrollKeys(scrollRef, true);
+
   return (
-    <ScrollBox flexGrow={1}>
+    <ScrollBox ref={scrollRef} flexGrow={1} flexDirection="column">
       <Box flexDirection="column" paddingTop={0}>
         {/* Header */}
         <Box marginBottom={1}>

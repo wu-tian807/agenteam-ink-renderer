@@ -127,4 +127,16 @@ export const theme = {
 
   // ── Markdown ──
   markdown: { theme: "dark" as const },
+
+  // ── Context panel (used by /context grid visualization) ──
+  contextPanel: {
+    category: {
+      system:   C.cyan,
+      tools:    C.magenta,
+      messages: C.green,
+      free:     C.blackBright,
+    },
+    // Square symbols (claude-code parity): filled / partial / free
+    symbol: { filled: "⛁ ", partial: "⛀ ", free: "⛶ " },
+  },
 } as const;

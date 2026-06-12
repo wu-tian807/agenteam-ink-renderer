@@ -23,6 +23,7 @@ import { panelListChromeOverhead } from "../lib/scrollable-list-viewport.js";
 import { useScrollableListViewport } from "./use-scrollable-list-viewport.js";
 import { ScrollableListFrame, scrollableListNavHint } from "../components/ScrollableListFrame.js";
 import { BoardPanel } from "../components/BoardPanel.js";
+import { ContextPanel, type ContextVisualizationData } from "../components/ContextPanel.js";
 import { parseCommand } from "@agenteam/types";
 import { theme } from "../lib/theme.js";
 import { appendSystemTurn } from "../lib/system-message.js";
@@ -556,12 +557,27 @@ export function useSlashCommands({
     if (data && typeof data === "object" && (data as Record<string, unknown>).dispatched === true) {
       return;
     }
+    // Structured payloads with a `kind` discriminator get dispatched to a
+    // dedicated panel renderer instead of the generic JSON dump. New panels
+    // register here — keep this switch tiny; rendering logic lives in the
+    // panel component itself.
+    if (data && typeof data === "object" && (data as Record<string, unknown>).kind === "context-visualization") {
+      const ctxData = data as unknown as ContextVisualizationData;
+      scheduler.push({
+        id: "context-panel",
+        kind: "panel",
+        layout: "fullscreen",
+        title: `Context Usage (${ctxData.agentId})`,
+        render: () => <ContextPanel data={ctxData} />,
+      });
+      return;
+    }
     const repr = data == null ? "(no data)"
       : typeof data === "string" ? data
       : typeof data === "number" || typeof data === "boolean" ? String(data)
       : JSON.stringify(data, null, 2);
     pushSystemMessage(`[/${name}]\n${repr}`);
-  }, [pushSystemMessage]);
+  }, [pushSystemMessage, scheduler]);
 
   // Phase 1.1: fall back to the legacy agent_command (LLM tool_call) path.
   const fallbackToAgentCommand = useCallback((command: string): void => {

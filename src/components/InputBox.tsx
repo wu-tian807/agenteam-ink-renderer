@@ -19,6 +19,7 @@ import useInput from "../ink/hooks/use-input.js";
 import { useCommandRouter } from "../hooks/use-command-router.js";
 import type { CommandSpec } from "@agenteam/types";
 import { useInputState } from "../hooks/use-input-state.js";
+import { resolveSlashCommand } from "../lib/slash-command-registry.js";
 import { CtrlCLayerContext } from "../hooks/use-ctrl-c-chain.js";
 import { useSetPromptOverlay } from "../hooks/prompt-overlay-context.js";
 import { theme } from "../lib/theme.js";
@@ -297,11 +298,22 @@ export function InputBox({
   controlRef,
   remoteCommands,
 }: InputBoxProps): React.JSX.Element {
+  // Recognise '/'-prefixed input as a real slash command only when its first
+  // token resolves against either the local registry or the worker-supplied
+  // remoteCommands. Unknown '/foo' falls through to onSubmit as plain text.
+  const isKnownSlashCommand = useCallback((cmd: string): boolean => {
+    if (resolveSlashCommand(cmd)) return true;
+    const firstToken = cmd.replace(/^\/+/, "").split(/\s+/, 1)[0] ?? "";
+    if (!firstToken) return false;
+    return remoteCommands?.some(c => c.name === firstToken) ?? false;
+  }, [remoteCommands]);
+
   const { text, segments, cursorPos, handleInput, setText, setSegments, setCursor, clear: clearInput } = useInputState({
     onSubmit,
     onSteerSubmit,
     onSlashCommand,
     onAttachment,
+    isKnownSlashCommand,
   });
 
   // Imperative handle for draft persistence: getSegments reads through a ref

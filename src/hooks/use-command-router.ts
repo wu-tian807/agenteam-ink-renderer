@@ -52,12 +52,20 @@ export function useCommandRouter(
 
   const args = useMemo(() => {
     if (!inArgsMode || !matched) return [];
-    const trimmed = input.slice(1).trim();
-    const spaceIdx = trimmed.indexOf(" ");
-    return trimmed.slice(spaceIdx + 1).split(/\s+/).filter(Boolean);
+    // Find the first space after the leading "/" — this separates command name from args.
+    // Do NOT trim() first: trimming wipes the trailing space that distinguishes
+    // "still typing the current arg" from "finished it, about to type the next".
+    const rest = input.slice(1);
+    const firstSpace = rest.indexOf(" ");
+    if (firstSpace < 0) return [];
+    return rest.slice(firstSpace + 1).split(/\s+/).filter(Boolean);
   }, [input, inArgsMode, matched]);
 
-  const argIndex = args.length; // which arg the user is typing (0-based: argIndex=0 means typing arg1)
+  // argIndex semantics: which positional slot the cursor is currently on.
+  // Trailing space → user has committed all visible args, cursor is on the next slot.
+  // No trailing space → user is mid-typing the last token, cursor stays on its slot.
+  const trailingSpace = input.endsWith(" ");
+  const argIndex = trailingSpace ? args.length : Math.max(0, args.length - 1);
 
   const suggestions = useMemo(() => {
     if (!input.startsWith("/")) return [];

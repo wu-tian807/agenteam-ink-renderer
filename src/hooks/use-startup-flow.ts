@@ -77,14 +77,10 @@ export function useStartupFlow(opts: {
 
   const overlayActive = scheduler.isActive();
 
-  // Condition 1: no instance → show instance picker (or skip if single-instance)
+  // Condition 1: no instance → show instance picker.
   useEffect(() => {
     if (instanceId || overlayActive) return;
-    if (dataSource.listInstances) {
-      showInstancePicker();
-    } else {
-      setInstanceId("_single_");
-    }
+    showInstancePicker();
   }, [instanceId, overlayActive]);
 
   // Condition 2: instance selected but no agent → resolve cached/default,
@@ -113,19 +109,13 @@ export function useStartupFlow(opts: {
       // a pack picker; fall through to the agents path so a transient
       // problem doesn't bury the user's screen under an overlay.
       let hasTeam: boolean | undefined;
-      if (dataSource.listInstances) {
-        try {
-          const instances = await dataSource.listInstances();
-          hasTeam = instances.find(i => i.id === instanceId)?.hasTeam;
-        } catch { /* hasTeam stays undefined → not stale, just unknown */ }
-      }
+      try {
+        const instances = await dataSource.listInstances();
+        hasTeam = instances.find(i => i.id === instanceId)?.hasTeam;
+      } catch { /* hasTeam stays undefined → not stale, just unknown */ }
 
       if (hasTeam === false) {
-        if (dataSource.listPacks && dataSource.teamLoad) {
-          showLoadPack();
-        } else {
-          showAgentPicker("fullscreen");
-        }
+        showLoadPack();
         return;
       }
 
@@ -140,7 +130,7 @@ export function useStartupFlow(opts: {
         return;
       }
 
-      const cached = dataSource.readCachedAgent?.(instanceId) ?? null;
+      const cached = dataSource.readCachedAgent(instanceId);
       if (cached && agents.includes(cached)) {
         setActiveAgent(cached);
         setCompletedTurns([]);
@@ -148,9 +138,9 @@ export function useStartupFlow(opts: {
         return;
       }
 
-      const defaultAgent = await dataSource.fetchDefaultAgent?.() ?? null;
+      const defaultAgent = await dataSource.fetchDefaultAgent();
       if (defaultAgent && agents.includes(defaultAgent)) {
-        dataSource.writeCachedAgent?.(instanceId, defaultAgent).catch(() => {});
+        dataSource.writeCachedAgent(instanceId, defaultAgent).catch(() => {});
         setActiveAgent(defaultAgent);
         setCompletedTurns([]);
         replaySession(defaultAgent).catch(() => {});

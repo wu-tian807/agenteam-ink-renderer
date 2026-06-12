@@ -77,9 +77,9 @@ export interface RendererDataSource {
   readRendererState(): RendererStateJson;
   writeRendererActiveAgent(agent: string): Promise<void>;
   /** Fetch team's defaultAgent hint. Returns null if not set or unavailable. */
-  fetchDefaultAgent?(): Promise<string | null>;
+  fetchDefaultAgent(): Promise<string | null>;
   /** Fetch control plane overview (optional). */
-  fetchControlOverview?(): Promise<string | null>;
+  fetchControlOverview(): Promise<string | null>;
   /**
    * List all available instances from the Gateway.
    *
@@ -92,56 +92,59 @@ export interface RendererDataSource {
    * response into a stripped-down object will silently regress that
    * decision back to the legacy `agents.length === 0` heuristic.
    */
-  listInstances?(): Promise<InstanceInfo[]>;
+  listInstances(): Promise<InstanceInfo[]>;
   /** Read cached agent for a given instance. Returns null if not cached. */
-  readCachedAgent?(instanceId: string): string | null;
+  readCachedAgent(instanceId: string): string | null;
   /** Cache agent selection for a given instance. */
-  writeCachedAgent?(instanceId: string, agent: string): Promise<void>;
+  writeCachedAgent(instanceId: string, agent: string): Promise<void>;
   /** Check whether an agent is currently running (from TeamBoard RUNNING state). */
-  isAgentRunning?(agentId: string): Promise<boolean>;
+  isAgentRunning(agentId: string): Promise<boolean>;
   /** Fetch the agent's operational STATUS from TeamBoard (e.g. "plan_mode"). */
-  getAgentStatus?(agentId: string): Promise<string>;
+  getAgentStatus(agentId: string): Promise<string>;
   /** Fetch the full agent tree (node list with roles and hierarchy). */
-  fetchAgentTree?(): Promise<AgentNodeData[]>;
+  fetchAgentTree(): Promise<AgentNodeData[]>;
   /** Fetch TeamBoard variables. If agentId is omitted, returns all agents' boards. */
-  fetchTeamBoard?(agentId?: string): Promise<Record<string, Record<string, unknown>>>;
+  fetchTeamBoard(agentId?: string): Promise<Record<string, Record<string, unknown>>>;
   /** Fetch the agent.json configuration for a specific agent. */
-  fetchAgentJson?(agentId: string): Promise<Record<string, unknown> | null>;
+  fetchAgentJson(agentId: string): Promise<Record<string, unknown> | null>;
   /** List model names available in key/models.json (the model catalog). */
-  listAvailableModels?(): Promise<string[]>;
+  listAvailableModels(): Promise<string[]>;
   /** Read agent-overrides.json for a specific agent. Returns {} when absent. */
-  readAgentOverrides?(agentId: string): Promise<Record<string, unknown>>;
+  readAgentOverrides(agentId: string): Promise<Record<string, unknown>>;
   /** Create a new instance. Returns id and initial status. */
-  addInstance?(id: string): Promise<{ id: string; status: string }>;
+  addInstance(id: string): Promise<{ id: string; status: string }>;
   /** Permanently delete an instance (free = shutdown + rm containers + rm directory). */
-  freeInstance?(id: string): Promise<void>;
+  freeInstance(id: string): Promise<void>;
   /** Permanently free an agent (shutdown + rm `agents/{id}` + rm `homes/{id}` + tree node + teamboard).
    *  Internally maps to `delete-agent` command. Sessions/logs are retained for history. */
-  freeAgent?(instanceId: string, agentId: string): Promise<void>;
+  freeAgent(instanceId: string, agentId: string): Promise<void>;
   /** List all packs. */
-  listPacks?(): Promise<Array<{ id: string; version?: string; isBuilt: boolean }>>;
+  listPacks(): Promise<Array<{ id: string; version?: string; isBuilt: boolean }>>;
+  /** Create a new pack with default scaffold (pack.json + steward agent + setup.sh + git init).
+   *  Returns the created packId on success; throws on failure (e.g. id already exists). */
+  createPack(packId: string, description?: string): Promise<string>;
   /** Delete a pack's Docker image and tar cache. */
-  packCleanImage?(packId: string): Promise<{ imageRemoved: boolean; tarRemoved: boolean }>;
+  packCleanImage(packId: string): Promise<{ imageRemoved: boolean; tarRemoved: boolean }>;
   /** Remove all Docker containers for an instance. */
-  removeContainers?(instanceId: string): Promise<{ removed: string[] }>;
+  removeContainers(instanceId: string): Promise<{ removed: string[] }>;
   /** Preview team→pack sync: returns packId, currentVersion, and changed files. */
-  teamSyncPreview?(): Promise<{ packId: string; currentVersion: string; files: Array<{ path: string; status: string }> }>;
+  teamSyncPreview(): Promise<{ packId: string; currentVersion: string; files: Array<{ path: string; status: string }> }>;
   /** Execute team→pack sync with a new version string. */
-  teamSyncExecute?(newVersion: string): Promise<void>;
+  teamSyncExecute(newVersion: string): Promise<void>;
   /** Restart an instance (hard stop + re-provision + start). */
-  restartInstance?(instanceId: string): Promise<void>;
+  restartInstance(instanceId: string): Promise<void>;
   /** Load a pack into an instance's team (shutdown → copy pack → start). If forkId is provided, fork the pack first. */
-  teamLoad?(instanceId: string, packId: string, forkId?: string): Promise<void>;
+  teamLoad(instanceId: string, packId: string, forkId?: string): Promise<void>;
   /** Fetch team info (manifest + backups) for an instance. */
-  fetchTeamInfo?(instanceId: string): Promise<{ team: { teamId: string; source: { type: string; id: string; version: string }; defaultAgent?: string; createdAt: string } | null; backups: string[] }>;
+  fetchTeamInfo(instanceId: string): Promise<{ team: { teamId: string; source: { type: string; id: string; version: string }; defaultAgent?: string; createdAt: string } | null; backups: string[] }>;
   /** Restore a team backup (shutdown → restore → start). */
-  teamRestore?(instanceId: string, backupName: string): Promise<void>;
+  teamRestore(instanceId: string, backupName: string): Promise<void>;
   /** Read the persisted draft (input box + reserved queue) for (instance, agent). */
-  readDraft?(instanceId: string, agent: string): DraftSnapshot | null;
+  readDraft(instanceId: string, agent: string): DraftSnapshot | null;
   /** Persist the draft for (instance, agent). Empty draft behaves as a clear. */
-  writeDraft?(instanceId: string, agent: string, draft: DraftSnapshot): Promise<void>;
+  writeDraft(instanceId: string, agent: string, draft: DraftSnapshot): Promise<void>;
   /** Sync variant for process-exit / SIGINT paths (async writes would race teardown). */
-  writeDraftSync?(instanceId: string, agent: string, draft: DraftSnapshot): void;
+  writeDraftSync(instanceId: string, agent: string, draft: DraftSnapshot): void;
 }
 
 // ─── RendererConfig ───

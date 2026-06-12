@@ -98,7 +98,7 @@ export function useOverlayHelpers({
           replaySession(agentId).catch(() => {});
           const instId = instanceIdRef.current;
           if (instId) {
-            dataSource.writeCachedAgent?.(instId, agentId).catch(() => {});
+            dataSource.writeCachedAgent(instId, agentId).catch(() => {});
           }
           close();
         },
@@ -113,10 +113,6 @@ export function useOverlayHelpers({
       pushSystemMessage("当前没有选中 Agent，无法 /delete-agent。");
       return;
     }
-    if (!dataSource.freeAgent) {
-      pushSystemMessage("当前 dataSource 不支持 /delete-agent。");
-      return;
-    }
     pushConfirm(scheduler, {
       id: "delete-agent-confirm",
       title: `确认删除当前 Agent "${agentId}"？（不可恢复）`,
@@ -125,10 +121,10 @@ export function useOverlayHelpers({
       onConfirm: () => {
         const instId = instanceIdRef.current;
         scheduler.clear();
-        dataSource.writeCachedAgent?.(instId, "").catch(() => {});
+        dataSource.writeCachedAgent(instId, "").catch(() => {});
         setActiveAgent("");
         setCompletedTurns([]);
-        dataSource.freeAgent!(instId, agentId)
+        dataSource.freeAgent(instId, agentId)
           .then(() => pushSystemMessage(`🗑  Agent "${agentId}" 已删除。请选择下一个 Agent。`))
           .catch((e) => pushSystemMessage(`❌ 删除 Agent 失败: ${e instanceof Error ? e.message : String(e)}`));
       },

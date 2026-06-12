@@ -134,9 +134,6 @@ export function useEventBridge(
   // Poll TeamBoard RUNNING + STATUS keys; drive thinkingStartMs on state transition
   useEffect(() => {
     if (!activeAgent) return;
-    const hasRunning = !!dataSource.isAgentRunning;
-    const hasStatus = !!dataSource.getAgentStatus;
-    if (!hasRunning && !hasStatus) return;
     let cancelled = false;
     let wasRunning = false;
     let turnStartMs = 0;
@@ -144,8 +141,8 @@ export function useEventBridge(
       while (!cancelled) {
         try {
           const [running, status] = await Promise.all([
-            hasRunning ? dataSource.isAgentRunning!(activeAgent) : undefined,
-            hasStatus ? dataSource.getAgentStatus!(activeAgent) : undefined,
+            dataSource.isAgentRunning(activeAgent),
+            dataSource.getAgentStatus(activeAgent),
           ]);
           if (!cancelled) {
             if (running !== undefined) {

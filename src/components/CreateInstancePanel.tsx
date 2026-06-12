@@ -38,7 +38,6 @@ export function CreateInstancePanel({ dataSource, close, onCreated }: CreateInst
     if (!id) { setError("ID 不能为空"); return; }
     if (!ID_PATTERN.test(id)) { setError("仅允许字母、数字、下划线和连字符"); return; }
     if (id.length > 64) { setError("ID 过长（最多 64 字符）"); return; }
-    if (!dataSource.addInstance) { setError("当前环境不支持创建 Instance"); return; }
 
     setSubmitting(true);
     setError(null);

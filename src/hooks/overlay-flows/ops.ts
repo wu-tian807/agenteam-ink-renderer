@@ -9,14 +9,13 @@ import { makeInstanceLoadItems, pushConfirm } from "./helpers.js";
 // ── Pack clean-image (select pack → confirm) ──
 
 export function showPackCleanImage({ scheduler, dataSource, pushSystemMessage }: OverlayFlowDeps): void {
-  if (!dataSource.listPacks) return;
   scheduler.push({
     id: "pack-clean-image-picker",
     kind: "select",
     layout: "fullscreen",
     title: "选择要清理镜像的 Pack",
     loadItems: async () => {
-      const packs = await dataSource.listPacks!();
+      const packs = await dataSource.listPacks();
       return packs.map(p => ({
         label: p.id,
         hint: `${p.version ? `v${p.version}` : ""} ${p.isBuilt ? "[已构建]" : "[未构建]"}`.trim(),
@@ -30,7 +29,6 @@ export function showPackCleanImage({ scheduler, dataSource, pushSystemMessage }:
         title: `确认删除 Pack "${packId}" 的镜像？`,
         confirmLabel: "确认删除镜像（可重新构建）",
         onConfirm: () => {
-          if (!dataSource.packCleanImage) return;
           scheduler.clear();
           dataSource.packCleanImage(packId)
             .then(r => pushSystemMessage(
@@ -49,7 +47,6 @@ export function showPackCleanImage({ scheduler, dataSource, pushSystemMessage }:
 
 export function showRemoveContainers(deps: OverlayFlowDeps): void {
   const { scheduler, dataSource, pushSystemMessage } = deps;
-  if (!dataSource.listInstances) return;
   scheduler.push({
     id: "rm-containers-picker",
     kind: "select",
@@ -63,7 +60,6 @@ export function showRemoveContainers(deps: OverlayFlowDeps): void {
         title: `确认删除 Instance "${targetId}" 的全部容器？`,
         confirmLabel: "确认删除全部容器",
         onConfirm: () => {
-          if (!dataSource.removeContainers) return;
           scheduler.clear();
           dataSource.removeContainers(targetId)
             .then(r => {
@@ -92,15 +88,13 @@ function bumpVersion(cur: string, type: "major" | "minor" | "patch"): string {
 }
 
 export function showSyncPack({ scheduler, dataSource, pushSystemMessage }: OverlayFlowDeps): void {
-  if (!dataSource.teamSyncPreview) return;
-
   scheduler.push({
     id: "sync-pack-preview",
     kind: "select",
     layout: "fullscreen",
     title: "同步 Team → Pack（加载预览中...）",
     loadItems: async () => {
-      const preview = await dataSource.teamSyncPreview!();
+      const preview = await dataSource.teamSyncPreview();
       const v = preview.currentVersion;
       const fileHint = preview.files.length > 0
         ? `${preview.files.length} 个文件变更`
@@ -116,13 +110,12 @@ export function showSyncPack({ scheduler, dataSource, pushSystemMessage }: Overl
       const bumpTypes = ["patch", "minor", "major"] as const;
       if (idx >= bumpTypes.length) return;
       const bumpType = bumpTypes[idx]!;
-      if (!dataSource.teamSyncPreview || !dataSource.teamSyncExecute) return;
       scheduler.clear();
       (async () => {
         try {
-          const preview = await dataSource.teamSyncPreview!();
+          const preview = await dataSource.teamSyncPreview();
           const newVersion = bumpVersion(preview.currentVersion, bumpType);
-          await dataSource.teamSyncExecute!(newVersion);
+          await dataSource.teamSyncExecute(newVersion);
           const summary = preview.files.length > 0
             ? preview.files.map(f => `  ${f.status === "added" ? "+" : f.status === "deleted" ? "-" : "~"} ${f.path}`).join("\n")
             : "  (无文件变更)";

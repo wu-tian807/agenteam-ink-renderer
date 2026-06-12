@@ -60,7 +60,7 @@ export function makeInstanceLoadItems(
   dataSource: RendererDataSource,
   opts?: Parameters<typeof buildInstanceItems>[1],
 ): () => Promise<SelectItem[]> {
-  return async () => buildInstanceItems(await dataSource.listInstances!(), opts);
+  return async () => buildInstanceItems(await dataSource.listInstances(), opts);
 }
 
 export function pushConfirm(

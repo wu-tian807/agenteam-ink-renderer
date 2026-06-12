@@ -378,7 +378,11 @@ export function InputBox({
     if (key.return && router.isActive) {
       const cmd = router.confirmSelected();
       if (cmd && onSlashCommand) {
-        onSlashCommand(`/${cmd}`);
+        // In args mode the user has already typed the full command line
+        // (e.g. "/create-agent foo bar"); ship the verbatim input so the
+        // positional args reach the worker. Outside args mode `text` is
+        // only a partial like "/agen" — rebuild from the chosen suggestion.
+        onSlashCommand(router.argIndex !== null ? text : `/${cmd}`);
         clearInput();
         return;
       }

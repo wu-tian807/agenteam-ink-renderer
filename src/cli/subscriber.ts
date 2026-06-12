@@ -390,6 +390,13 @@ export class InkRendererSubscriber {
           isBuilt: p.isBuilt as boolean ?? false,
         }));
       },
+      async createPack(packId: string, description?: string) {
+        const body: Record<string, unknown> = { id: packId };
+        if (description) body.description = description;
+        const { status, data } = await apiCall(conn, "POST", "/api/packs/create", body, { timeoutMs: 30_000 });
+        if (status >= 400) throw new Error((data as Record<string, unknown>).error as string ?? `Failed to create pack (${status})`);
+        return (data as Record<string, unknown>).packId as string ?? packId;
+      },
       async packCleanImage(packId: string) {
         const { status, data } = await apiCall(conn, "DELETE", `/api/packs/${encodeURIComponent(packId)}/image`, undefined, { timeoutMs: 60_000 });
         if (status >= 400) throw new Error((data as Record<string, unknown>).error as string ?? `Failed to clean image (${status})`);

@@ -46,7 +46,6 @@ export function showCreateInstance({ scheduler, dataSource, pushSystemMessage }:
 
 export function showDeleteInstancePicker(deps: OverlayFlowDeps): void {
   const { scheduler, dataSource, pushSystemMessage, instanceIdRef } = deps;
-  if (!dataSource.listInstances) return;
   const currentInstId = instanceIdRef.current;
   scheduler.push({
     id: "delete-instance-picker",
@@ -66,7 +65,6 @@ export function showDeleteInstancePicker(deps: OverlayFlowDeps): void {
         title: `确认删除 Instance "${targetId}"？`,
         confirmLabel: "确认删除（不可恢复）",
         onConfirm: () => {
-          if (!dataSource.freeInstance) return;
           scheduler.clear();
           dataSource.freeInstance(targetId)
             .then(() => pushSystemMessage(`🗑  Instance "${targetId}" 已删除`))
@@ -94,7 +92,7 @@ function attemptRestart(
     items: [{ label: "请稍候...", disabled: true }],
   });
 
-  dataSource.restartInstance!(instanceId)
+  dataSource.restartInstance(instanceId)
     .then(() => {
       pushSystemMessage(`✅ Instance "${instanceId}" 已重启`);
       scheduler.clear();
@@ -126,7 +124,6 @@ export function showInstancePicker(
   setInstanceId: ((id: string) => void) | undefined,
 ): void {
   const { scheduler, dataSource } = deps;
-  if (!dataSource.listInstances) return;
 
   // Cache enough of each instance to drive Enter routing without another fetch.
   // For idle instances we route Enter based on hasTeam: true → restart, false →
@@ -139,7 +136,7 @@ export function showInstancePicker(
     layout: "fullscreen",
     title: "选择 Instance",
     loadItems: async () => {
-      const instances = await dataSource.listInstances!();
+      const instances = await dataSource.listInstances();
       instanceMetaMap.clear();
       for (const i of instances) {
         instanceMetaMap.set(i.id, { status: i.status, hasTeam: i.hasTeam ?? true });
@@ -186,7 +183,7 @@ export function showInstancePicker(
       }
 
       // error / idle (with team) → manual restart.
-      if (RESTARTABLE_STATUSES.has(meta.status) && dataSource.restartInstance) {
+      if (RESTARTABLE_STATUSES.has(meta.status)) {
         attemptRestart(deps, item.label, setInstanceId);
         return;
       }
@@ -198,6 +195,8 @@ export function showInstancePicker(
 
 // ── Load pack into instance (select instance → select pack → confirm) ──
 
+const ACTION_CREATE_PACK = "➕ 新建空 Pack";
+
 function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string): void {
   const { scheduler, dataSource, pushSystemMessage, handleInstanceSwitch } = deps;
   scheduler.push({
@@ -206,16 +205,41 @@ function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string):
     layout: "fullscreen",
     title: `选择要加载到 "${targetInstId}" 的 Pack`,
     loadItems: async () => {
-      const packs = await dataSource.listPacks!();
-      return [
-        ...packs.map(p => ({
-          label: p.id,
-          hint: `${p.version ? `v${p.version}` : ""} ${p.isBuilt ? "[已构建]" : "[未构建]"}`.trim(),
-          hintColor: p.isBuilt ? C.green : C.blackBright,
-        })),
-      ];
+      const packs = await dataSource.listPacks();
+      const items = packs.map(p => ({
+        label: p.id,
+        hint: `${p.version ? `v${p.version}` : ""} ${p.isBuilt ? "[已构建]" : "[未构建]"}`.trim(),
+        hintColor: p.isBuilt ? C.green : C.blackBright,
+      }));
+      // 末尾追加"新建空 pack"动作项
+      items.push({ label: ACTION_CREATE_PACK, hint: "新建一个最小 scaffold 的 pack 并加载到此 instance", hintColor: C.cyan });
+      return items;
     },
     onConfirm: (_pidx, packItem) => {
+      // "新建空 pack" 分支：弹输入框收 packId → createPack → 用新 packId 走 teamLoad
+      if (packItem.label === ACTION_CREATE_PACK) {
+        scheduler.push({
+          id: "create-pack-name",
+          kind: "panel",
+          layout: "fullscreen",
+          title: "新建空 Pack",
+          render: () =>
+            React.createElement(TextInputPanel, {
+              prompt: "输入新 Pack 名称:",
+              onSubmit: (newPackId: string) => {
+                scheduler.clear();
+                handleInstanceSwitch?.("");
+                pushSystemMessage(`⏳ 正在创建空 Pack "${newPackId}" 并加载到 "${targetInstId}"...`);
+                dataSource.createPack(newPackId)
+                  .then(() => dataSource.teamLoad(targetInstId, newPackId))
+                  .then(() => pushSystemMessage(`✅ 空 Pack "${newPackId}" 已创建并加载到 Instance "${targetInstId}"`))
+                  .catch(e => pushSystemMessage(`❌ 创建/加载失败: ${e instanceof Error ? e.message : String(e)}`));
+              },
+            }),
+        });
+        return;
+      }
+
       const packId = packItem.label;
       scheduler.push({
         id: "load-pack-confirm",
@@ -233,7 +257,7 @@ function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string):
             scheduler.clear();
             handleInstanceSwitch?.("");
             pushSystemMessage(`⏳ 正在加载 Pack "${packId}" 到 "${targetInstId}"...`);
-            dataSource.teamLoad!(targetInstId, packId)
+            dataSource.teamLoad(targetInstId, packId)
               .then(() => pushSystemMessage(`✅ Pack "${packId}" 已加载到 Instance "${targetInstId}"`))
               .catch(e => pushSystemMessage(`❌ 加载失败: ${e instanceof Error ? e.message : String(e)}`));
             return;
@@ -251,7 +275,7 @@ function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string):
                   scheduler.clear();
                   handleInstanceSwitch?.("");
                   pushSystemMessage(`⏳ 正在 Fork 并加载 Pack "${packId}" → "${forkId}" 到 "${targetInstId}"...`);
-                  dataSource.teamLoad!(targetInstId, packId, forkId)
+                  dataSource.teamLoad(targetInstId, packId, forkId)
                     .then(() => pushSystemMessage(`✅ Pack "${packId}" 已 Fork 为 "${forkId}" 并加载到 Instance "${targetInstId}"`))
                     .catch(e => pushSystemMessage(`❌ 加载失败: ${e instanceof Error ? e.message : String(e)}`));
                 },
@@ -264,13 +288,11 @@ function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string):
 }
 
 export function showLoadPackForInstance(deps: OverlayFlowDeps, instanceId: string): void {
-  if (!deps.dataSource.listPacks || !deps.dataSource.teamLoad) return;
   showPackPickerForInstance(deps, instanceId);
 }
 
 export function showLoadPack(deps: OverlayFlowDeps): void {
   const { scheduler, dataSource } = deps;
-  if (!dataSource.listInstances || !dataSource.listPacks || !dataSource.teamLoad) return;
   scheduler.push({
     id: "load-pack-instance-picker",
     kind: "select",
@@ -287,7 +309,6 @@ export function showLoadPack(deps: OverlayFlowDeps): void {
 
 export function showTeamRestore(deps: OverlayFlowDeps): void {
   const { scheduler, dataSource, pushSystemMessage } = deps;
-  if (!dataSource.listInstances || !dataSource.fetchTeamInfo || !dataSource.teamRestore) return;
   scheduler.push({
     id: "restore-instance-picker",
     kind: "select",
@@ -302,7 +323,7 @@ export function showTeamRestore(deps: OverlayFlowDeps): void {
         layout: "fullscreen",
         title: `选择要恢复到 "${targetInstId}" 的备份`,
         loadItems: async () => {
-          const info = await dataSource.fetchTeamInfo!(targetInstId);
+          const info = await dataSource.fetchTeamInfo(targetInstId);
           if (info.backups.length === 0) {
             return [{ label: "（无可用备份）", disabled: true }];
           }
@@ -321,7 +342,7 @@ export function showTeamRestore(deps: OverlayFlowDeps): void {
             onConfirm: () => {
               scheduler.clear();
               pushSystemMessage(`⏳ 正在恢复备份 "${backupName}" 到 "${targetInstId}"...`);
-              dataSource.teamRestore!(targetInstId, backupName)
+              dataSource.teamRestore(targetInstId, backupName)
                 .then(() => pushSystemMessage(`✅ 备份 "${backupName}" 已恢复到 Instance "${targetInstId}"，实例已重启`))
                 .catch(e => pushSystemMessage(`❌ 恢复失败: ${e instanceof Error ? e.message : String(e)}`));
             },

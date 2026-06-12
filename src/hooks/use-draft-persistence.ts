@@ -64,14 +64,14 @@ export function useDraftPersistence({
     if (key === lastWrittenRef.current) return;
     lastWrittenRef.current = key;
     try {
-      if (sync) dataSource.writeDraftSync?.(i, a, snap);
-      else void dataSource.writeDraft?.(i, a, snap).catch(() => {});
+      if (sync) dataSource.writeDraftSync(i, a, snap);
+      else void dataSource.writeDraft(i, a, snap).catch(() => {});
     } catch { /* fs errors are non-fatal — draft is best-effort */ }
   }, [dataSource]);
 
   useEffect(() => {
     if (!instanceId || !activeAgent) return;
-    const draft = dataSource.readDraft?.(instanceId, activeAgent) ?? null;
+    const draft = dataSource.readDraft(instanceId, activeAgent);
     inputControlRef.current?.setSegments(draft?.inputSegments ?? []);
     queueRef.current.setItems(draft?.reservedQueue ?? []);
 

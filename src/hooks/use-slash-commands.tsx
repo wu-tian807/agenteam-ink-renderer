@@ -312,9 +312,9 @@ export function useSlashCommands({
     };
 
     Promise.all([
-      dataSource.listAvailableModels!(),
-      dataSource.readAgentOverrides!(agentId),
-      dataSource.fetchAgentJson?.(agentId) ?? Promise.resolve(null),
+      dataSource.listAvailableModels(),
+      dataSource.readAgentOverrides(agentId),
+      dataSource.fetchAgentJson(agentId),
     ]).then(([models, overrides, agentJson]) => {
       if (models.length === 0) {
         pushSystemMessage("当前 models.json 为空，请先在 Gateway 注册模型。");
@@ -621,14 +621,6 @@ export function useSlashCommands({
         });
         return;
       case "restart-instance": {
-        // restartInstance lives on RendererDataSource (Gateway HTTP), NOT on
-        // RendererCallbacks — reading from `callbacks` here was a wiring bug:
-        // the property is permanently undefined on the callbacks object and the
-        // guard short-circuited to the "dataSource 不支持" message.
-        if (!dataSource.restartInstance) {
-          pushSystemMessage("当前 dataSource 不支持 /restart_instance（需要 Gateway 通道）。");
-          return;
-        }
         if (!instanceId) {
           pushSystemMessage("还未选中 Instance，请先 /instance 选择一个。");
           return;

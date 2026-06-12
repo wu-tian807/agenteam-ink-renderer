@@ -131,7 +131,7 @@ export function InkApp({
         await new Promise(r => setTimeout(r, 5000));
         if (cancelled || scheduler.isActive()) continue;
         try {
-          const all = await dataSource.listInstances!();
+          const all = await dataSource.listInstances();
           const cur = all.find(i => i.id === instanceId);
           if (!cur || cur.status !== "error") { errorShownForRef.current = ""; continue; }
           if (errorShownForRef.current === instanceId) continue;

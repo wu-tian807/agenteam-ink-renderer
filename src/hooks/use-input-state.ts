@@ -59,6 +59,15 @@ interface UseInputStateOptions {
   onSteerSubmit?: (text: string, segments: InputSegment[]) => void;
   onSlashCommand?: (command: string) => void;
   onAttachment?: (paths: string[]) => void;
+  /**
+   * Returns true iff the leading-`/` input names a real command (local
+   * SLASH_COMMANDS or worker-registered remoteCommands). Unknown `/foo`
+   * inputs are sent as plain text via onSubmit instead of being trapped
+   * into the slash-command pipeline (which would dead-end as
+   * "Unknown command" or fall back to agent_command).
+   * Omit to keep the legacy behaviour: any `/`-prefixed input → onSlashCommand.
+   */
+  isKnownSlashCommand?: (command: string) => boolean;
 }
 
 // ── Reducer state ──
@@ -92,6 +101,7 @@ export function useInputState({
   onSteerSubmit,
   onSlashCommand,
   onAttachment,
+  isKnownSlashCommand,
 }: UseInputStateOptions): InputStateResult {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const { segments, cursor: cursorPos } = state;
@@ -305,8 +315,10 @@ export function useInputState({
       const hasPaste = segs.some(s => s.type === "paste");
       if (!trimmed && !hasFiles && !hasPaste) return;
       pushHistory(trimmed);
-      if (trimmed.startsWith("/") && !hasFiles && onSlashCommand) {
-        onSlashCommand(trimmed);
+      const looksLikeSlash = trimmed.startsWith("/") && !hasFiles && !!onSlashCommand;
+      const isKnown = looksLikeSlash && (isKnownSlashCommand?.(trimmed) ?? true);
+      if (isKnown) {
+        onSlashCommand!(trimmed);
       } else {
         onSubmit(trimmed, segs);
       }
@@ -544,7 +556,7 @@ export function useInputState({
       update(segs, cp);
       historyIdxRef.current = -1;
     }
-  }, [onSubmit, onSteerSubmit, onSlashCommand, onAttachment, pushHistory, update]);
+  }, [onSubmit, onSteerSubmit, onSlashCommand, onAttachment, isKnownSlashCommand, pushHistory, update]);
 
   const text = segContent(segments);
   const isMultiline = text.includes("\n") || segments.some(s => s.type === "paste" && s.content.includes("\n"));

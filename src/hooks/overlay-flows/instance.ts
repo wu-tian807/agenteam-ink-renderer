@@ -8,7 +8,7 @@ import type { InstanceStatus } from "@agenteam/types";
 import { isInstanceSelectable } from "@agenteam/types";
 import { C } from "../../lib/colors.js";
 import { CreateInstancePanel } from "../../components/CreateInstancePanel.js";
-import { TextInputPanel } from "../../components/TextInputPanel.js";
+import { TextInputPanel, validateId } from "../../components/TextInputPanel.js";
 import { makeInstanceLoadItems, buildInstanceItems, pushConfirm } from "./helpers.js";
 
 const ACTION_CREATE = "➕ 新建 Instance";
@@ -226,6 +226,7 @@ function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string):
           render: () =>
             React.createElement(TextInputPanel, {
               prompt: "输入新 Pack 名称:",
+              validate: validateId,
               onSubmit: (newPackId: string) => {
                 scheduler.clear();
                 handleInstanceSwitch?.("");
@@ -271,6 +272,7 @@ function showPackPickerForInstance(deps: OverlayFlowDeps, targetInstId: string):
               React.createElement(TextInputPanel, {
                 prompt: "输入 Fork Pack 名称:",
                 defaultValue: `${packId}-${targetInstId}`,
+                validate: validateId,
                 onSubmit: (forkId: string) => {
                   scheduler.clear();
                   handleInstanceSwitch?.("");

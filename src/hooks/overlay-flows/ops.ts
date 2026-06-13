@@ -135,15 +135,10 @@ export function showSyncPack({ scheduler, dataSource, pushSystemMessage }: Overl
           render: () =>
             React.createElement(TextInputPanel, {
               prompt: "Commit message (e.g. 'fix: tighten X'):",
+              validate: (v: string) => v.trim() ? null : "commit message 不能为空",
               onSubmit: (msg: string) => {
-                const trimmed = msg.trim();
-                if (!trimmed) {
-                  scheduler.clear();
-                  pushSystemMessage("❌ commit message 不能为空");
-                  return;
-                }
                 scheduler.clear();
-                executeSync(trimmed);  // bump omitted → server auto-patch
+                executeSync(msg.trim());  // bump omitted → server auto-patch
               },
             }),
         });

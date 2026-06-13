@@ -12,7 +12,8 @@ import { useSimpleInput } from "../hooks/use-simple-input.js";
 interface TextInputPanelProps {
   prompt: string;
   defaultValue?: string;
-  /** Optional caller-supplied validator (return error string or null). Built-in only checks non-empty. */
+  /** Optional caller-supplied validator. Returns error string to display, or null to accept.
+   *  Component itself imposes ZERO constraints — caller decides everything (incl. emptiness). */
   validate?: (value: string) => string | null;
   onSubmit: (value: string) => void;
 }
@@ -28,13 +29,11 @@ export function TextInputPanel({ prompt, defaultValue = "", validate, onSubmit }
   const [error, setError] = useState<string | null>(null);
 
   const submit = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) { setError("不能为空"); return; }
     if (validate) {
-      const msg = validate(trimmed);
+      const msg = validate(raw);
       if (msg) { setError(msg); return; }
     }
-    onSubmit(trimmed);
+    onSubmit(raw);
   }, [validate, onSubmit]);
 
   const { before, at, after } = useSimpleInput({

@@ -418,9 +418,13 @@ export class InkRendererSubscriber {
           files: (d.files as Array<{ path: string; status: string }>) ?? [],
         };
       },
-      async teamSyncExecute(newVersion: string) {
-        const { status, data } = await apiCall(conn, "POST", `/api/instances/${encodeURIComponent(self.currentInstanceId)}/team/sync`, { newVersion }, { timeoutMs: 30_000 });
+      async teamSyncExecute(message: string, bumpLevel?: "patch" | "minor" | "major") {
+        const body: Record<string, unknown> = { message };
+        if (bumpLevel) body.bump = bumpLevel;
+        const { status, data } = await apiCall(conn, "POST", `/api/instances/${encodeURIComponent(self.currentInstanceId)}/team/sync`, body, { timeoutMs: 30_000 });
         if (status >= 400) throw new Error((data as Record<string, unknown>).error as string ?? `Sync failed (${status})`);
+        const d = data as Record<string, unknown>;
+        return { version: typeof d.version === "string" ? d.version : "" };
       },
       async restartInstance(instanceId: string) {
         const { status, data } = await apiCall(conn, "POST", `/api/instances/${encodeURIComponent(instanceId)}/restart`, undefined, { timeoutMs: 120_000 });

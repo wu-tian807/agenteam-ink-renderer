@@ -2,9 +2,11 @@
  * @desc Operational overlay flows — pack clean-image, rm-containers, sync-pack.
  */
 
+import React from "react";
 import type { OverlayFlowDeps } from "./types.js";
 import { C } from "../../lib/colors.js";
 import { makeInstanceLoadItems, pushConfirm } from "./helpers.js";
+import { TextInputPanel } from "../../components/TextInputPanel.js";
 
 // ── Pack clean-image (select pack → confirm) ──
 
@@ -75,58 +77,82 @@ export function showRemoveContainers(deps: OverlayFlowDeps): void {
   });
 }
 
-// ── Sync team → pack (choose bump type → execute) ──
+// ── Sync team → pack (auto-patch from tag distance; minor/major tag explicitly) ──
 
-function bumpVersion(cur: string, type: "major" | "minor" | "patch"): string {
-  const p = cur.split(".").map(Number);
-  while (p.length < 3) p.push(0);
-  switch (type) {
-    case "major": return `${p[0]! + 1}.0.0`;
-    case "minor": return `${p[0]}.${p[1]! + 1}.0`;
-    case "patch": return `${p[0]}.${p[1]}.${p[2]! + 1}`;
-  }
-}
+const SYNC_PRESETS = [
+  { label: "patch  (auto from tag distance)", bump: "patch" as const, message: "chore: sync" },
+  { label: "minor  (tag vX.Y+1.0 then commit)", bump: "minor" as const, message: "feat: sync" },
+  { label: "major  (tag vX+1.0.0 then commit)", bump: "major" as const, message: "BREAKING: sync" },
+] as const;
+const CUSTOM_LABEL = "自定义 commit message... (patch)";
+const CANCEL_LABEL = "取消";
 
 export function showSyncPack({ scheduler, dataSource, pushSystemMessage }: OverlayFlowDeps): void {
+  function executeSync(message: string, bump?: "patch" | "minor" | "major"): void {
+    (async () => {
+      try {
+        const preview = await dataSource.teamSyncPreview();
+        const result = await dataSource.teamSyncExecute(message, bump);
+        const summary = preview.files.length > 0
+          ? preview.files.map(f => `  ${f.status === "added" ? "+" : f.status === "deleted" ? "-" : "~"} ${f.path}`).join("\n")
+          : "  (无文件变更)";
+        pushSystemMessage(
+          `✅ 已同步到 Pack "${preview.packId}" v${result.version}` +
+          `\n  bump: ${bump ?? "patch (auto)"}  message: ${message}` +
+          `\n${summary}`,
+        );
+      } catch (e) {
+        pushSystemMessage(`❌ 同步失败: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    })();
+  }
+
   scheduler.push({
     id: "sync-pack-preview",
     kind: "select",
     layout: "fullscreen",
-    title: "同步 Team → Pack（加载预览中...）",
+    title: "同步 Team → Pack（patch 自动算 tag 距离；minor/major 显式 tag）",
     loadItems: async () => {
       const preview = await dataSource.teamSyncPreview();
-      const v = preview.currentVersion;
       const fileHint = preview.files.length > 0
         ? `${preview.files.length} 个文件变更`
         : "无文件变更";
+      const baseHint = `${preview.packId} v${preview.currentVersion} · ${fileHint}`;
       return [
-        { label: `patch  ${v} → ${bumpVersion(v, "patch")}`, hint: `${preview.packId} · ${fileHint}` },
-        { label: `minor  ${v} → ${bumpVersion(v, "minor")}`, hint: `${preview.packId} · ${fileHint}` },
-        { label: `major  ${v} → ${bumpVersion(v, "major")}`, hint: `${preview.packId} · ${fileHint}` },
-        { label: "取消" },
+        ...SYNC_PRESETS.map(p => ({ label: p.label, hint: baseHint })),
+        { label: CUSTOM_LABEL, hint: "弹输入框收 commit message；bump 默认 patch（自动）" },
+        { label: CANCEL_LABEL },
       ];
     },
-    onConfirm: (idx) => {
-      const bumpTypes = ["patch", "minor", "major"] as const;
-      if (idx >= bumpTypes.length) return;
-      const bumpType = bumpTypes[idx]!;
+    onConfirm: (idx, item) => {
+      if (item.label === CANCEL_LABEL) return;
+      if (item.label === CUSTOM_LABEL) {
+        scheduler.push({
+          id: "sync-pack-custom-msg",
+          kind: "panel",
+          layout: "fullscreen",
+          title: "输入 commit message (patch bump auto)",
+          render: () =>
+            React.createElement(TextInputPanel, {
+              prompt: "Commit message (e.g. 'fix: tighten X'):",
+              onSubmit: (msg: string) => {
+                const trimmed = msg.trim();
+                if (!trimmed) {
+                  scheduler.clear();
+                  pushSystemMessage("❌ commit message 不能为空");
+                  return;
+                }
+                scheduler.clear();
+                executeSync(trimmed);  // bump omitted → server auto-patch
+              },
+            }),
+        });
+        return;
+      }
+      const preset = SYNC_PRESETS[idx];
+      if (!preset) return;
       scheduler.clear();
-      (async () => {
-        try {
-          const preview = await dataSource.teamSyncPreview();
-          const newVersion = bumpVersion(preview.currentVersion, bumpType);
-          await dataSource.teamSyncExecute(newVersion);
-          const summary = preview.files.length > 0
-            ? preview.files.map(f => `  ${f.status === "added" ? "+" : f.status === "deleted" ? "-" : "~"} ${f.path}`).join("\n")
-            : "  (无文件变更)";
-          pushSystemMessage(
-            `✅ 已同步到 Pack "${preview.packId}" v${newVersion}` +
-            `\n${summary}`,
-          );
-        } catch (e) {
-          pushSystemMessage(`❌ 同步失败: ${e instanceof Error ? e.message : String(e)}`);
-        }
-      })();
+      executeSync(preset.message, preset.bump);
     },
   });
 }

@@ -129,8 +129,11 @@ export interface RendererDataSource {
   removeContainers(instanceId: string): Promise<{ removed: string[] }>;
   /** Preview team→pack sync: returns packId, currentVersion, and changed files. */
   teamSyncPreview(): Promise<{ packId: string; currentVersion: string; files: Array<{ path: string; status: string }> }>;
-  /** Execute team→pack sync with a new version string. */
-  teamSyncExecute(newVersion: string): Promise<void>;
+  /** Execute team→pack sync. Pack git's pre-commit hook auto-patches from
+   *  `git rev-list latestTag..HEAD` distance. Pass `bumpLevel: 'minor'|'major'`
+   *  to tag a fresh release before commit (hook then uses that tag verbatim).
+   *  Returns the version pack.json carries after commit. */
+  teamSyncExecute(message: string, bumpLevel?: "patch" | "minor" | "major"): Promise<{ version: string }>;
   /** Restart an instance (hard stop + re-provision + start). */
   restartInstance(instanceId: string): Promise<void>;
   /** Load a pack into an instance's team (shutdown → copy pack → start). If forkId is provided, fork the pack first. */

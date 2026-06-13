@@ -12,11 +12,17 @@ import { useSimpleInput } from "../hooks/use-simple-input.js";
 interface TextInputPanelProps {
   prompt: string;
   defaultValue?: string;
+  /** Optional caller-supplied validator (return error string or null). Built-in only checks non-empty. */
   validate?: (value: string) => string | null;
   onSubmit: (value: string) => void;
 }
 
-const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+/** Reusable validator for pack/agent IDs — pass via `validate` prop where needed. */
+export function validateId(value: string): string | null {
+  if (!/^[a-zA-Z0-9_-]+$/.test(value)) return "仅允许字母、数字、下划线和连字符";
+  if (value.length > 64) return "名称过长（最多 64 字符）";
+  return null;
+}
 
 export function TextInputPanel({ prompt, defaultValue = "", validate, onSubmit }: TextInputPanelProps): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +30,6 @@ export function TextInputPanel({ prompt, defaultValue = "", validate, onSubmit }
   const submit = useCallback((raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) { setError("不能为空"); return; }
-    if (!ID_PATTERN.test(trimmed)) { setError("仅允许字母、数字、下划线和连字符"); return; }
-    if (trimmed.length > 64) { setError("名称过长（最多 64 字符）"); return; }
     if (validate) {
       const msg = validate(trimmed);
       if (msg) { setError(msg); return; }
